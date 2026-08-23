@@ -21,7 +21,6 @@ func _run() -> void:
 	game.mobile_mode = false
 	game._start_run()
 	game.state = game.GameState.PAUSED
-	game.touch_controls.visible = false
 	game.pause_layer.visible = false
 	game.hud.visible = true
 	game._clear_run_objects()
@@ -65,6 +64,14 @@ func _run() -> void:
 	for i in range(32):
 		await process_frame
 	_save_frame("trip.png")
+	game._clear_run_objects()
+	game.player.reset_player()
+	game.state = game.GameState.RUNNING
+	game._spawn_obstacle("bar", 1, -1.0)
+	game._trigger_hit(game.obstacles[-1].node, "bar")
+	for i in range(48):
+		await process_frame
+	_save_frame("bar_flip.png")
 	game.state = game.GameState.PAUSED
 	game.player.active = false
 	game._show_shop()

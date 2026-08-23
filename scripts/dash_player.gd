@@ -4,10 +4,10 @@ signal crash_finished
 
 const LANES := [-2.8, 0.0, 2.8]
 const SKIN_TEXTURE_PATHS := [
-	"res://assets/generated/gameplay/runner_classic.png",
-	"res://assets/generated/gameplay/runner_midnight.png",
-	"res://assets/generated/gameplay/runner_golden.png",
-	"res://assets/generated/gameplay/runner_bubblegum.png"
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_golden_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png"
 ]
 
 var lane := 1
@@ -65,10 +65,13 @@ func step(delta: float) -> void:
 	run_clock += delta
 	position.x = move_toward(position.x, LANES[lane], delta * 12.5)
 	if stunned:
-		if crash_mode == "trip":
-			_trip_animation(delta)
-		else:
-			_spin_animation(delta)
+		match crash_mode:
+			"trip":
+				_trip_animation(delta)
+			"bar_flip":
+				_bar_flip_animation(delta)
+			_:
+				_spin_animation(delta)
 		return
 	if jumping:
 		jump_velocity -= 24.0 * delta
@@ -118,6 +121,16 @@ func trigger_trip() -> void:
 	jumping = false
 	jump_velocity = 0.0
 
+func trigger_bar_flip() -> void:
+	if stunned:
+		return
+	stunned = true
+	crash_mode = "bar_flip"
+	spin_time = 0.0
+	ducking = false
+	jumping = false
+	jump_velocity = 0.0
+
 func collision_height() -> float:
 	if ducking:
 		return 1.75
@@ -161,6 +174,37 @@ func _trip_animation(delta: float) -> void:
 		active = false
 		visual.rotation.x = -1.42
 		visual.rotation.z = 0.08
+		crash_finished.emit()
+
+func _bar_flip_animation(delta: float) -> void:
+	spin_time += delta
+	var duration := 1.65
+	var t := minf(spin_time / duration, 1.0)
+	var eased := t * t * (3.0 - 2.0 * t)
+	var angle := -TAU * eased
+
+	# Rotate the runner plate around a fixed point at the base of the neck rather
+	# than around its body center. This carries the feet from track level, over
+	# the head and crossbar, then back down to the track in one readable arc.
+	var neck_pivot := Vector2(0.0, 4.05)
+	var upright_center := Vector2(0.0, 2.53)
+	var flipped_center := neck_pivot + (upright_center - neck_pivot).rotated(angle)
+	var landing := smoothstep(0.82, 1.0, t)
+	character_sprite.position.x = flipped_center.x
+	character_sprite.position.y = flipped_center.y - landing * 0.38
+	character_sprite.rotation.z = angle + landing * 0.08
+	character_sprite.scale = Vector3(1.0 + landing * 0.12, 1.0 - landing * 0.16, 1.0)
+	visual.position.z = -eased * 1.25
+	visual.position.y = sin(t * PI) * 0.16
+	left_leg.rotation.x = lerpf(left_leg.rotation.x, 1.2, delta * 8.0)
+	right_leg.rotation.x = lerpf(right_leg.rotation.x, -1.0, delta * 8.0)
+
+	if spin_time >= duration:
+		active = false
+		visual.position.y = 0.0
+		character_sprite.position = Vector3(0.0, 2.15, -0.08)
+		character_sprite.rotation = Vector3(0.0, 0.0, 0.08)
+		character_sprite.scale = Vector3(1.12, 0.84, 1.0)
 		crash_finished.emit()
 
 func _animate_run() -> void:

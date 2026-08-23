@@ -30,7 +30,13 @@ const RUNNER_ART_PATHS := [
 	"res://assets/generated/gameplay/runner_golden.png",
 	"res://assets/generated/gameplay/runner_bubblegum.png"
 ]
-const RIVAL_ART_PATH := "res://assets/generated/gameplay/rival_runner.png"
+const RUNNER_GAMEPLAY_ART_PATHS := [
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_golden_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png"
+]
+const RIVAL_ART_PATH := "res://assets/generated/gameplay/rival_runner_back.png"
 const OBSTACLE_ATLAS_PATH := "res://assets/generated/gameplay/obstacle_atlas.png"
 const REWARD_POWER_ATLAS_PATH := "res://assets/generated/gameplay/reward_power_atlas.png"
 const BIOME_PROP_ATLAS_PATH := "res://assets/generated/gameplay/biome_prop_atlas.png"
@@ -255,7 +261,7 @@ func _start_run() -> void:
 	shop_layer.visible = false
 	pause_layer.visible = false
 	hud.visible = true
-	touch_controls.visible = not mobile_mode
+	touch_controls.visible = false
 	_apply_biome(0, true)
 	_update_hud()
 	if mobile_mode:
@@ -348,10 +354,14 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 		_sprite_3d(node, load(RIVAL_ART_PATH), Vector3(0.0, 2.35, 0.0), 0.00335, "GeneratedRival")
 	else:
 		var cell: int = [0, 5].pick_random() if kind == "wall" else OBSTACLE_CELLS.get(kind, 5)
-		var sprite_height: float = {"wall": 1.42, "bar": 2.18, "cone": 1.08, "drone": 2.55, "slip": 0.62}.get(kind, 1.0)
+		var sprite_height: float = {"wall": 1.42, "bar": 2.82, "cone": 1.08, "drone": 2.55, "slip": 0.62}.get(kind, 1.0)
 		var pixel_size: float = {"wall": 0.0074, "bar": 0.0088, "cone": 0.0062, "drone": 0.0074, "slip": 0.0063}.get(kind, 0.0065)
 		var art := _sprite_3d(node, _atlas_texture(OBSTACLE_ATLAS_PATH, 3, 2, cell), Vector3(0.0, sprite_height, 0.0), pixel_size, "Generated%sArt" % kind.capitalize())
-		if kind == "slip":
+		if kind == "bar":
+			# Keep the feet planted while lifting the crossbar well above the other
+			# hazards. A little extra width reinforces that this spans the lane.
+			art.scale = Vector3(1.08, 1.28, 1.0)
+		elif kind == "slip":
 			art.scale.y = 0.46
 	obstacles.append({"node": node, "kind": kind, "lane": lane, "passed": false, "phase": randf() * TAU})
 
@@ -450,12 +460,16 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 		return
 	state = GameState.HIT
 	shake_time = 0.75
-	last_crash = "trip" if obstacle_kind in ["wall", "cone", "rival"] else "spin"
-	if last_crash == "trip":
+	if obstacle_kind in ["wall", "cone", "rival"]:
+		last_crash = "trip"
 		player.trigger_trip()
+	elif obstacle_kind == "bar":
+		last_crash = "bar_flip"
+		player.trigger_bar_flip()
 	else:
+		last_crash = "spin"
 		player.trigger_spin()
-	var puff_height := 0.65 if last_crash == "trip" else 2.6
+	var puff_height := 0.65 if last_crash == "trip" else (4.0 if last_crash == "bar_flip" else 2.6)
 	_spawn_puff(player.global_position + Vector3(0, puff_height, 0), Color("#fff0cf"), 24)
 	_play_sound(trip_sound if last_crash == "trip" else honk_sound, 0.0)
 	hud.visible = false
@@ -478,8 +492,18 @@ func _on_crash_finished() -> void:
 func _show_results() -> void:
 	state = GameState.RESULTS
 	last_result = GameManager.finish_run(distance, run_feathers, current_biome)
-	result_title.text = "NEW PERSONAL BEST!" if last_result.new_best else ("WHAT A TRIP!" if last_crash == "trip" else "WHAT A SPIN!")
-	result_subtitle.text = "TOE CLIP → FORWARD TUMBLE" if last_crash == "trip" else "THE NECK-WRAP PINWHEEL"
+	if last_result.new_best:
+		result_title.text = "NEW PERSONAL BEST!"
+	elif last_crash == "trip":
+		result_title.text = "WHAT A TRIP!"
+	elif last_crash == "bar_flip":
+		result_title.text = "OVER THE BAR!"
+	else:
+		result_title.text = "WHAT A SPIN!"
+	result_subtitle.text = {
+		"trip": "TOE CLIP → FORWARD TUMBLE",
+		"bar_flip": "NECK CATCH → FEET UP → FLIP DOWN",
+	}.get(last_crash, "THE NECK-WRAP PINWHEEL")
 	result_stats.text = "%dm  •  %d pts\n%d feathers  •  %d near-misses\nBest: %dm  •  %s medal here" % [int(distance), score, run_feathers, near_misses, int(GameManager.best_distance), GameManager.medal_for_biome(current_biome)]
 	result_bonus.text = "+25 DAILY CHALLENGE BONUS" if last_result.daily_bonus > 0 else "Clean-dodge combo peaked at %d×" % combo
 	var earned_medal := GameManager.medal_for_biome(current_biome)
@@ -513,6 +537,11 @@ func _apply_biome(index: int, immediate := false) -> void:
 	var env := world_environment.environment
 	env.background_color = biome.sky
 	env.fog_light_color = biome.sky
+	# Generated vistas carry their own atmospheric perspective. Heavy engine fog
+	# was bleaching the distant art into a flat cyan wash.
+	var fog_densities := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034]
+	env.fog_density = fog_densities[index]
+	env.fog_sky_affect = 0.18
 	env.ambient_light_color = biome.sky.lightened(0.35)
 	var exposures := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94]
 	env.tonemap_exposure = exposures[index]
@@ -535,13 +564,21 @@ func _apply_biome(index: int, immediate := false) -> void:
 
 func _rebuild_props(index: int) -> void:
 	for child in prop_root.get_children():
-		child.queue_free()
-	for z in range(-88, 25, 20):
-		for side: float in [-1.0, 1.0]:
-			var x: float = side * randf_range(8.0, 9.8)
-			var prop := _sprite_3d(prop_root, _atlas_texture(BIOME_PROP_ATLAS_PATH, 3, 2, index), Vector3(x, 2.55, float(z)), randf_range(0.0105, 0.0122), "%sPropCluster" % BIOMES[index].name.replace(" ", ""))
-			prop.flip_h = side > 0.0
-			prop.modulate = Color(1.0, 1.0, 1.0, randf_range(0.94, 1.0))
+		child.free()
+	# The stadium vista already includes its own flags, flowers, lamps, and crowd
+	# dressing. Extra foreground plates made those details appear twice.
+	if index == 0:
+		return
+	var prop_number := 0
+	for z in range(-82, 20, 26):
+		# Stagger one cluster at a time instead of mirroring identical plates on
+		# both sides. This keeps parallax without creating a doubled-image look.
+		var side := -1.0 if posmod(prop_number + index, 2) == 0 else 1.0
+		var x: float = side * randf_range(8.6, 10.2)
+		var prop := _sprite_3d(prop_root, _atlas_texture(BIOME_PROP_ATLAS_PATH, 3, 2, index), Vector3(x, 2.55, float(z)), randf_range(0.0102, 0.0115), "%sPropCluster" % BIOMES[index].name.replace(" ", ""))
+		prop.flip_h = side > 0.0
+		prop.modulate = Color(1.0, 1.0, 1.0, randf_range(0.94, 1.0))
+		prop_number += 1
 
 func _build_game_viewport() -> void:
 	game_viewport_container = SubViewportContainer.new()
@@ -661,39 +698,9 @@ func _build_stadium_art() -> void:
 	vista.render_priority = -2
 	stadium_art_root.add_child(vista)
 
-	# Angled crowd plates become the near left/right grandstands and add perspective depth.
-	var crowd_texture: Texture2D = load("res://assets/generated/classic_stadium_crowd.png")
-	for side: float in [-1.0, 1.0]:
-		for segment in range(2):
-			var crowd_mesh := QuadMesh.new()
-			crowd_mesh.size = Vector2(46.0, 11.0)
-			var crowd_mat := StandardMaterial3D.new()
-			crowd_mat.albedo_texture = crowd_texture
-			crowd_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			crowd_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			crowd_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-			var crowd := MeshInstance3D.new()
-			crowd.name = "Grandstand%s%s" % ["Left" if side < 0 else "Right", segment]
-			crowd.mesh = crowd_mesh
-			crowd.material_override = crowd_mat
-			crowd.position = Vector3(side * 14.7, 7.2, -25.0 - segment * 40.0)
-			crowd.rotation_degrees.y = side * 72.0
-			stadium_art_root.add_child(crowd)
-
-		# Roofs, rails, and support columns sit in front of the crowd art.
-		var roof := _box(stadium_art_root, Vector3(side * 17.0, 13.0, -43.0), Vector3(6.0, 0.32, 88.0), Color("#f7dfb4"))
-		roof.rotation.z = side * -0.09
-		_box(stadium_art_root, Vector3(side * 8.2, 1.0, -43.0), Vector3(0.14, 0.14, 88.0), Color("#ffffff"))
-		for z in range(-82, 3, 14):
-			_capsule(stadium_art_root, Vector3(side * 16.0, 6.5, z), Vector3(0.13, 12.0, 0.13), Color("#d8c8aa"))
-			var lamp := _sphere(stadium_art_root, Vector3(side * 8.0, 9.0, z), Vector3(0.42, 0.18, 0.32), Color("#fff3bf"))
-			lamp.material_override.emission_enabled = true
-			lamp.material_override.emission = Color("#ffe7a0")
-			lamp.material_override.emission_energy_multiplier = 1.8
-
 func _build_biome_backdrops() -> void:
-	# Classic uses the layered stadium root above. Every other biome gets its own
-	# original generated vista plus its procedural foreground props.
+	# Classic uses the single complete stadium vista above. Every other biome gets
+	# its own original generated vista plus sparse procedural foreground props.
 	for biome_index in range(1, BIOME_BACKDROP_PATHS.size()):
 		var art_root := Node3D.new()
 		art_root.name = "%sArt" % BIOMES[biome_index].name.replace(" ", "")
@@ -1003,20 +1010,11 @@ func _build_ui() -> void:
 	hud.add_child(power_button)
 
 	touch_controls = Control.new()
+	touch_controls.name = "InputGestureLayer"
 	touch_controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	touch_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	touch_controls.visible = false
 	ui_content_root.add_child(touch_controls)
-	var left_btn := _touch_button("←", Vector2(24, -128), Vector2(108, -44), Control.PRESET_BOTTOM_LEFT)
-	left_btn.pressed.connect(func(): _move_player(-1))
-	touch_controls.add_child(left_btn)
-	var right_btn := _touch_button("→", Vector2(122, -128), Vector2(206, -44), Control.PRESET_BOTTOM_LEFT)
-	right_btn.pressed.connect(func(): _move_player(1))
-	touch_controls.add_child(right_btn)
-	var up_btn := _touch_button("↑", Vector2(-328, -128), Vector2(-244, -44), Control.PRESET_BOTTOM_RIGHT)
-	up_btn.pressed.connect(func(): player.jump())
-	touch_controls.add_child(up_btn)
-	var down_btn := _touch_button("↓", Vector2(-230, -128), Vector2(-146, -44), Control.PRESET_BOTTOM_RIGHT)
-	down_btn.pressed.connect(func(): player.duck())
-	touch_controls.add_child(down_btn)
 
 	result_layer = _modal_layer(ui_content_root)
 	var result_panel := _center_panel(result_layer, Vector2(520, 500))
@@ -1233,7 +1231,7 @@ func _resume_game() -> void:
 	state = GameState.RUNNING
 	pause_layer.visible = false
 	hud.visible = true
-	touch_controls.visible = not mobile_mode
+	touch_controls.visible = false
 
 func _quit_run() -> void:
 	state = GameState.RESULTS
@@ -1304,15 +1302,6 @@ func _hud_stat(parent: Container, value: String) -> Label:
 	label.custom_minimum_size = Vector2(150, 62)
 	parent.add_child(label)
 	return label
-
-func _touch_button(value: String, top_left: Vector2, bottom_right: Vector2, preset: Control.LayoutPreset) -> Button:
-	var button := _button(value, Color(0.03, 0.09, 0.18, 0.66), Color(1, 1, 1, 0.3), 30)
-	button.set_anchors_preset(preset)
-	button.offset_left = top_left.x
-	button.offset_top = top_left.y
-	button.offset_right = bottom_right.x
-	button.offset_bottom = bottom_right.y
-	return button
 
 func _modal_layer(parent: Node) -> Control:
 	var layer := Control.new()

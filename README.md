@@ -1,6 +1,6 @@
 # Ostrich Dash
 
-A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, five characters, obstacles, pickups, powers, effects, medals, track surfaces, prop clusters, and six biome environments share one original premium animated-film 3D art direction. Gameplay uses polished 2.5D generated plates over a lightweight 3D track, with synthesized sound effects.
+A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, five characters, obstacles, pickups, powers, effects, medals, track surfaces, prop clusters, and six biome environments share one original premium animated-film 3D art direction. A third-person follow camera looks over the rear-facing ostrich as it runs away down a lightweight 3D track, with polished 2.5D generated plates and synthesized sound effects.
 
 ## Play
 
@@ -18,14 +18,14 @@ Controls:
 - Down arrow or S: duck
 - E or Q: activate a fully charged power-up
 - P or Escape: pause
-- Mobile: swipe sideways to switch lanes, swipe up to jump, and swipe down to duck; keyboard-style arrow buttons are automatically hidden
+- Mobile: swipe sideways to switch lanes, swipe up to jump, and swipe down to duck; no on-screen arrow buttons are created
 
 ## Included systems
 
 - 3-lane endless running with a smooth speed ramp
 - Jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
 - Hurdles, walls, cones, drones, slippery patches, and rival runners
-- Forward trip for foot-level impacts, elevated-bar spin, camera shake, and generated feather/dust bursts
+- Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art
 - Background changes every 225 meters; non-stadium biomes are reshuffled for every complete tour with no consecutive repeats
 - Distance score, clean-dodge combo, near-misses, feathers, and personal best
@@ -33,7 +33,7 @@ Controls:
 - Persistent feather wallet, four unlockable skins, and biome medals
 - Daily 15-feather challenge and persistent save data
 - Pause, results, retry, shop, and loadout screens
-- Generated title art, app icon, runners, rivals, hazards, rewards, effects, medals, surfaces, biome props, vistas, and grandstands—no external game art
+- Generated title art, app icon, front-view shop portraits, rear-view gameplay runners, rivals, hazards, rewards, effects, medals, surfaces, biome props, and vistas—no external game art
 
 ## Validation
 

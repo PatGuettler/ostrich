@@ -8,11 +8,20 @@ Premium family-friendly animated-film 3D; rounded tactile toy forms; expressive,
 
 ## Character plates
 
+Front-facing plates are reserved for the menu and skin shop. Gameplay deliberately uses separate rear-facing plates so the camera follows behind the character and the ostrich runs away down the track.
+
 - `runner_classic.png`: one full-body black-and-cream ostrich runner with turquoise eyes, coral legs, teal visor and shoes, front three-quarter running pose, genuine transparent alpha.
 - `runner_midnight.png`: precise Classic recolor with midnight/navy feathers and purple gear.
 - `runner_golden.png`: precise Classic recolor with chocolate/amber feathers and golden gear.
 - `runner_bubblegum.png`: precise Classic recolor with berry/magenta feathers and pink gear.
 - `rival_runner.png`: distinct friendly pink-and-coral emu rival with purple headband and shoes, matching proportions and camera.
+- `runner_classic_back.png`: Classic runner seen directly from behind and slightly above, with a readable feather fan, visor back, running legs, and one shoe sole.
+- `runner_midnight_back.png`: rear-view Midnight runner with navy plumage and purple gear.
+- `runner_golden_back.png`: rear-view Golden runner with amber/chocolate plumage and sunshine-gold gear.
+- `runner_bubblegum_back.png`: rear-view Bubblegum runner with cream/pink plumage and candy-pink gear.
+- `rival_runner_back.png`: rear-view pink-and-coral rival, oriented in the same down-track direction.
+
+Rear-view generation prompt family: isolated full-body premium animated-film 3D ostrich runner, viewed directly from behind and slightly above as if followed by a game camera, centered mid-stride running away, transparent background, readable feather fan and legs, no face/front view, text, logo, scenery, track, shadow, or duplicate character. Each skin retained its established palette and accessories. The built-in image-generation workflow produced one image per skin; edge-connected neutral checker pixels were then mechanically converted to true alpha with `scripts/ci/remove_checker_alpha.gd`.
 
 ## Atlas prompts and fixed cell maps
 
@@ -80,6 +89,8 @@ Every transparent runtime asset is validated with `scripts/ci/check_image_alpha.
 ## Runtime and audit
 
 - Generated art is consumed by `scripts/dash_player.gd` and `scripts/main.gd`.
+- Rear-facing runner plates are used on the track; front-facing runner plates remain in the skin shop.
+- Classic Stadium uses only its single complete vista at runtime. The former crowd/roof/rail layering and duplicated foreground plates are intentionally disabled.
 - Hidden procedural player geometry remains only as an animation/collision rig.
-- `tests/art_capture.gd` deterministically captures all six biomes, both obstacle groups, effects, the trip pose, and the shop to `user://art_audit/`.
+- `tests/art_capture.gd` deterministically captures all six biomes, both obstacle groups, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
 - `tests/smoke_test.gd` asserts required art exists, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.

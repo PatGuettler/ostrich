@@ -45,6 +45,7 @@ func _run() -> void:
 		return
 	var required_art: Array[String] = []
 	required_art.append_array(game.RUNNER_ART_PATHS)
+	required_art.append_array(game.RUNNER_GAMEPLAY_ART_PATHS)
 	required_art.append_array([
 		game.RIVAL_ART_PATH,
 		game.OBSTACLE_ATLAS_PATH,
@@ -61,6 +62,10 @@ func _run() -> void:
 			return
 	if not is_instance_valid(game.player.character_sprite) or game.player.character_sprite.texture == null:
 		push_error("Generated runner art is not active")
+		quit(1)
+		return
+	if not game.player.character_sprite.texture.resource_path.ends_with("_back.png"):
+		push_error("Gameplay runner is not using a rear-facing follow-camera plate")
 		quit(1)
 		return
 	for mesh in game.player.visual.find_children("*", "MeshInstance3D", true, false):
@@ -111,6 +116,14 @@ func _run() -> void:
 	game._apply_biome(0, true)
 	if not game.stadium_art_root.visible:
 		push_error("Classic stadium artwork did not restore")
+		quit(1)
+		return
+	if game.stadium_art_root.get_child_count() != 1 or game.stadium_art_root.get_child(0).name != "StadiumVista":
+		push_error("Classic stadium contains duplicate layered artwork")
+		quit(1)
+		return
+	if game.prop_root.get_child_count() != 0:
+		push_error("Classic stadium contains duplicate foreground prop plates")
 		quit(1)
 		return
 	game._shuffle_biome_sequence()
@@ -179,6 +192,10 @@ func _run() -> void:
 		return
 	game.mobile_mode = false
 	game._start_run()
+	if game.touch_controls.visible or game.touch_controls.get_child_count() != 0:
+		push_error("Desktop mode displayed on-screen arrow controls")
+		quit(1)
+		return
 	game._clear_run_objects()
 	for kind in ["wall", "bar", "cone", "drone", "slip", "rival"]:
 		game._spawn_obstacle(kind, 1, -20.0)
@@ -187,6 +204,12 @@ func _run() -> void:
 			push_error("Generated obstacle art missing for %s" % kind)
 			quit(1)
 			return
+		if kind == "bar":
+			var gate_art := spawned.get_node("GeneratedBarArt") as Sprite3D
+			if gate_art.position.y < 2.8 or gate_art.scale.y < 1.25:
+				push_error("Duck-under gate is not visually tall enough")
+				quit(1)
+				return
 	game._spawn_feather(1, -18.0)
 	if not _has_sprite_descendant(game.feathers[-1].node):
 		push_error("Generated feather pickup art is missing")
@@ -257,10 +280,20 @@ func _run() -> void:
 		return
 	game._start_run()
 	game._trigger_hit(game.player, "bar")
-	for frame in range(120):
+	for frame in range(50):
 		await process_frame
-	if game.state != game.GameState.RESULTS or game.last_crash != "spin":
-		push_error("Elevated bar collision did not produce spin results")
+	if game.player.character_sprite.position.y < 5.25 or absf(game.player.character_sprite.rotation.z) < 2.7:
+		push_error("Tall-gate collision did not carry the runner's feet over the neck pivot")
+		quit(1)
+		return
+	for frame in range(80):
+		await process_frame
+	if game.state != game.GameState.RESULTS or game.last_crash != "bar_flip":
+		push_error("Elevated bar collision did not complete the neck-pivot flip")
+		quit(1)
+		return
+	if absf(game.player.character_sprite.position.y - 2.15) > 0.05 or absf(game.player.character_sprite.rotation.z) > 0.12:
+		push_error("Tall-gate flip did not return the runner's feet to the ground")
 		quit(1)
 		return
 	print("SMOKE_OK state=%s distance=%.1f obstacles=%d feathers=%d" % [game.state, game.distance, game.obstacles.size(), game.run_feathers])

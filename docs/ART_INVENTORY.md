@@ -11,7 +11,7 @@ This is the production checklist for bringing every visible gameplay element up 
 - Soft rounded forms, tactile feather/fabric/rubber/paint textures
 - Teal, coral, sunshine yellow, cream, and midnight-blue core palette
 - Warm rim light, clean readable values, and no text/logos/watermarks inside generated assets
-- Gameplay sprites face the camera at the same low, centered running-track perspective as the key art
+- Gameplay runners face away from the third-person follow camera; front-facing character plates remain available for portraits and menus
 
 ## Existing generated images
 
@@ -20,7 +20,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | `ostrich_dash_key_art.png` | Home screen | Keep; master style reference |
 | `ostrich_dash_icon.png` | App/launcher icon | Keep; face and character reference |
 | `classic_stadium_vista.png` | Classic backdrop | Keep |
-| `classic_stadium_crowd.png` | Side grandstands | Keep |
+| `classic_stadium_crowd.png` | Former side-grandstand layer | Retain as source art but do not render; the complete vista already contains the crowd |
 | `beach_track_vista.png` | Beach backdrop | Keep |
 | `night_games_vista.png` | Night backdrop | Keep |
 | `desert_circuit_vista.png` | Desert backdrop | Keep |
@@ -31,14 +31,14 @@ This is the production checklist for bringing every visible gameplay element up 
 
 | Visible object | Current render | Replacement |
 | --- | --- | --- |
-| Classic ostrich | Spheres, capsules, boxes, torus | Transparent polished full-body runner sprite |
-| Midnight skin | Primitive recolor | Matching midnight-purple runner sprite |
-| Golden skin | Primitive recolor | Matching sunshine-gold runner sprite |
-| Bubblegum skin | Primitive recolor | Matching candy-pink runner sprite |
-| Rival runner | Pink spheres/capsules | Cute competitive pink emu/ostrich sprite |
+| Classic ostrich | Spheres, capsules, boxes, torus | Transparent polished rear-view runner sprite; front view in shop |
+| Midnight skin | Primitive recolor | Matching rear-view midnight-purple runner sprite |
+| Golden skin | Primitive recolor | Matching rear-view sunshine-gold runner sprite |
+| Bubblegum skin | Primitive recolor | Matching rear-view candy-pink runner sprite |
+| Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich sprite |
 | Run motion | Primitive leg/wing swing | Sprite squash, bob, lean, footstep rhythm, shadow |
 | Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
-| Trip/spin | Whole primitive rig rotation | Same gameplay animation using finished character art |
+| Trip/gate flip/spin | Whole primitive rig rotation | Forward stumble for low hits, one neck-pivot revolution over gates, and a separate airborne spin using finished character art |
 
 ## Obstacles and pickups
 
@@ -66,7 +66,7 @@ This is the production checklist for bringing every visible gameplay element up 
 
 | Biome | Current foreground | Replacement cluster |
 | --- | --- | --- |
-| Classic Stadium | Primitive poles, flags, rails, lights | Pennant/lamp/flower trackside cluster |
+| Classic Stadium | Primitive poles, flags, rails, lights | Single complete stadium vista; no duplicate foreground plates |
 | Beach Track | Flat water, capsule palms | Palm, surfboard, flowers, pennants |
 | Night Games | Capsule poles and sphere lamps | Neon floodlight, glowing pennants, star lights |
 | Desert Circuit | Flattened rocks and primitive cactus | Rounded canyon rocks, flowering cactus, windsock |
@@ -95,18 +95,23 @@ This is the production checklist for bringing every visible gameplay element up 
 
 ## Generated production asset set
 
-The integration uses a small number of high-resolution transparent atlases so mobile draw calls and package size remain controlled:
+The integration uses a small number of high-resolution transparent plates and atlases so mobile draw calls and package size remain controlled:
 
 1. `runner_classic.png`
 2. `runner_midnight.png`
 3. `runner_golden.png`
 4. `runner_bubblegum.png`
 5. `rival_runner.png`
-6. `obstacle_atlas.png` — 3×2 cells
-7. `reward_power_atlas.png` — 3×2 cells
-8. `biome_prop_atlas.png` — 3×2 cells
-9. `effects_medals_atlas.png` — 3×2 cells
-10. `surface_atlas.png` — 3×2 cells
+6. `runner_classic_back.png`
+7. `runner_midnight_back.png`
+8. `runner_golden_back.png`
+9. `runner_bubblegum_back.png`
+10. `rival_runner_back.png`
+11. `obstacle_atlas.png` — 3×2 cells
+12. `reward_power_atlas.png` — 3×2 cells
+13. `biome_prop_atlas.png` — 3×2 cells
+14. `effects_medals_atlas.png` — 3×2 cells
+15. `surface_atlas.png` — 3×2 cells
 
 The six surface cells are also losslessly split into `gameplay/surfaces/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 
