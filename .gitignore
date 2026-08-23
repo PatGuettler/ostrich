@@ -1,0 +1,26 @@
+# Godot editor cache
+.godot/
+
+# Build outputs
+builds/
+*.apk
+*.aab
+
+# Generated Godot Android build template. Keep only the release overlays.
+/android/*
+!android/.build_version
+!android/play-release.gradle
+!android/proguard-godot-play.pro
+
+# Runtime configuration and credentials
+config/admob.json
+export_credentials.cfg
+*.keystore
+*.jks
+*service-account*.json
+
+# Local tooling and OS files
+.local-cache/
+*.tmp
+*.log
+.DS_Store

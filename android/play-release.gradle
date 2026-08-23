@@ -1,0 +1,18 @@
+// Applied to Godot's generated Android project by the CI export script.
+// Shrinks managed code/resources and keeps native libraries uncompressed for
+// modern Android page-size compatibility.
+
+android {
+	buildTypes {
+		release {
+			minifyEnabled true
+			shrinkResources true
+			proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-godot-play.pro"
+		}
+	}
+	packagingOptions {
+		jniLibs {
+			useLegacyPackaging false
+		}
+	}
+}

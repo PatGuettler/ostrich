@@ -1,0 +1,172 @@
+name: Deploy Ostrich Dash to Google Play Internal
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ostrich-dash-google-play-internal
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: "4.7.1"
+  GODOT_CHANNEL: stable
+  RELEASE_PACKAGE_NAME: com.grapegames.ostrichdash
+
+jobs:
+  build-and-deploy:
+    name: Build, verify, and upload AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Check out game source
+        uses: actions/checkout@v4
+
+      - name: Cache Godot editor, templates, and imports
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ostrich-dash/godot
+            ~/.local/share/godot/export_templates
+            .godot
+          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('**/*.gd', '**/*.import', 'project.godot', 'export_presets.cfg', 'android/.build_version') }}
+          restore-keys: |
+            godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+
+      - name: Cache Android build template
+        uses: actions/cache@v4
+        with:
+          path: android/build
+          key: android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('android/.build_version', 'android/play-release.gradle', 'android/proguard-godot-play.pro') }}
+          restore-keys: |
+            android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+
+      - name: Cache Gradle and AdMob binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.cache/ostrich-dash/admob
+            ~/.cache/ostrich-dash/bundletool
+          key: android-deps-${{ runner.os }}-${{ env.GODOT_VERSION }}-admob-v5.0.0
+          restore-keys: |
+            android-deps-${{ runner.os }}-${{ env.GODOT_VERSION }}-
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME}"
+          sdkmanager_path=""
+          for candidate in \
+            "$sdk_root/cmdline-tools/latest/bin/sdkmanager" \
+            "$sdk_root"/cmdline-tools/*/bin/sdkmanager; do
+            if [[ -x "$candidate" ]]; then
+              sdkmanager_path="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$sdkmanager_path" ]]; then
+            mkdir -p "$sdk_root/cmdline-tools"
+            curl -fsSL -o /tmp/android-cmdline-tools.zip \
+              "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+            unzip -qo /tmp/android-cmdline-tools.zip -d /tmp/android-cmdline-tools
+            rm -rf "$sdk_root/cmdline-tools/latest"
+            mv /tmp/android-cmdline-tools/cmdline-tools "$sdk_root/cmdline-tools/latest"
+            sdkmanager_path="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          echo "$(dirname "$sdkmanager_path")" >> "$GITHUB_PATH"
+          echo "$sdk_root/platform-tools" >> "$GITHUB_PATH"
+          set +o pipefail
+          yes | "$sdkmanager_path" --sdk_root="$sdk_root" --licenses >/dev/null 2>&1 || true
+          set -o pipefail
+          "$sdkmanager_path" --sdk_root="$sdk_root" --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "ndk;23.2.8568313" \
+            "cmake;3.10.2.4988404"
+
+      - name: Verify required release secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          OSTRICH_DASH_ADMOB_ANDROID_APP_ID: ${{ secrets.OSTRICH_DASH_ADMOB_ANDROID_APP_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required_name in \
+            ANDROID_KEYSTORE_BASE64 \
+            KEY_ALIAS \
+            KEYSTORE_PASSWORD \
+            SERVICE_ACCOUNT_JSON \
+            OSTRICH_DASH_ADMOB_ANDROID_APP_ID; do
+            if [[ -z "${!required_name:-}" ]]; then
+              echo "Required GitHub Actions secret is empty: $required_name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Decode and verify release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 --decode > "$HOME/.android/release.keystore"
+          keystore_size="$(wc -c < "$HOME/.android/release.keystore" | tr -d ' ')"
+          if [[ "$keystore_size" -lt 100 ]]; then
+            echo "Decoded keystore is too small; check ANDROID_KEYSTORE_BASE64" >&2
+            exit 1
+          fi
+          keytool -list -keystore "$HOME/.android/release.keystore" \
+            -alias "$KEY_ALIAS" \
+            -storepass "$KEYSTORE_PASSWORD"
+
+      - name: Export and validate signed Play AAB
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.${{ github.run_number }}
+          ADMOB_ADS_ENABLED: "true"
+          OSTRICH_DASH_ADMOB_ANDROID_APP_ID: ${{ secrets.OSTRICH_DASH_ADMOB_ANDROID_APP_ID }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: /home/runner/.android/release.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          chmod +x scripts/ci/godot-export-android.sh
+          ./scripts/ci/godot-export-android.sh
+
+      - name: Run gameplay smoke test
+        run: $HOME/.local/bin/godot --headless --fixed-fps 60 --path . --script res://tests/smoke_test.gd
+
+      - name: Upload to Google Play internal track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.RELEASE_PACKAGE_NAME }}
+          releaseFiles: builds/android/OstrichDash.aab
+          tracks: internal
+          status: completed

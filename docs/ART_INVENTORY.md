@@ -1,0 +1,113 @@
+# Ostrich Dash gameplay art inventory
+
+This is the production checklist for bringing every visible gameplay element up to the cute, polished 3D-rendered quality of `assets/generated/ostrich_dash_key_art.png` and the six biome vistas.
+
+**Production status: complete.** Every replacement listed below is generated, integrated, and covered by the gameplay smoke test. Deterministic visual captures for all six biomes, obstacle families, effects, trip pose, and shop are produced by `tests/art_capture.gd`.
+
+## Art direction anchor
+
+- Premium family-friendly animated-film 3D rendering
+- Lovable toy-like silhouettes with expressive faces where appropriate
+- Soft rounded forms, tactile feather/fabric/rubber/paint textures
+- Teal, coral, sunshine yellow, cream, and midnight-blue core palette
+- Warm rim light, clean readable values, and no text/logos/watermarks inside generated assets
+- Gameplay sprites face the camera at the same low, centered running-track perspective as the key art
+
+## Existing generated images
+
+| Existing image | Current use | Decision |
+| --- | --- | --- |
+| `ostrich_dash_key_art.png` | Home screen | Keep; master style reference |
+| `ostrich_dash_icon.png` | App/launcher icon | Keep; face and character reference |
+| `classic_stadium_vista.png` | Classic backdrop | Keep |
+| `classic_stadium_crowd.png` | Side grandstands | Keep |
+| `beach_track_vista.png` | Beach backdrop | Keep |
+| `night_games_vista.png` | Night backdrop | Keep |
+| `desert_circuit_vista.png` | Desert backdrop | Keep |
+| `snow_games_vista.png` | Snow backdrop | Keep |
+| `jungle_track_vista.png` | Jungle backdrop | Keep |
+
+## Player and characters
+
+| Visible object | Current render | Replacement |
+| --- | --- | --- |
+| Classic ostrich | Spheres, capsules, boxes, torus | Transparent polished full-body runner sprite |
+| Midnight skin | Primitive recolor | Matching midnight-purple runner sprite |
+| Golden skin | Primitive recolor | Matching sunshine-gold runner sprite |
+| Bubblegum skin | Primitive recolor | Matching candy-pink runner sprite |
+| Rival runner | Pink spheres/capsules | Cute competitive pink emu/ostrich sprite |
+| Run motion | Primitive leg/wing swing | Sprite squash, bob, lean, footstep rhythm, shadow |
+| Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
+| Trip/spin | Whole primitive rig rotation | Same gameplay animation using finished character art |
+
+## Obstacles and pickups
+
+| Visible object | Current render | Replacement |
+| --- | --- | --- |
+| Foot-level wall/hurdle | Two boxes | Padded colorful athletics hurdle |
+| Overhead bar | Three boxes | Cute striped limbo/training gate |
+| Traffic cone | Cone and box | Soft toy-like safety cone |
+| Drone | Sphere, bars, torus rotors | Friendly expressive referee drone |
+| Slippery patch | Flattened transparent sphere | Glossy splash-shaped puddle |
+| Feather collectible | Capsule and box | Glowing cream-and-gold feather |
+
+## Power-ups, rewards, and effects
+
+| Visible object | Current render | Replacement |
+| --- | --- | --- |
+| Shield | Text only | Puffy teal shield icon |
+| Magnet | Text only | Horseshoe magnet with feather sparkles |
+| Slow-Mo | Text only | Friendly stopwatch icon |
+| Score Rush | Text only | Winged gold star/score burst icon |
+| Collision burst | Primitive capsules | Feather/dust/sparkle effect sprites |
+| Bronze/Silver/Gold medals | Text only | Cute winged medal badges |
+
+## Environment foreground
+
+| Biome | Current foreground | Replacement cluster |
+| --- | --- | --- |
+| Classic Stadium | Primitive poles, flags, rails, lights | Pennant/lamp/flower trackside cluster |
+| Beach Track | Flat water, capsule palms | Palm, surfboard, flowers, pennants |
+| Night Games | Capsule poles and sphere lamps | Neon floodlight, glowing pennants, star lights |
+| Desert Circuit | Flattened rocks and primitive cactus | Rounded canyon rocks, flowering cactus, windsock |
+| Snow Games | Flattened snow and cone trees | Puffy snowbank, frosted pine, lantern, pennants |
+| Jungle Track | Capsule trunks and sphere leaves | Ruin stone, broad leaves, orchids, bamboo pennants |
+
+## Track and ground surfaces
+
+| Surface | Current render | Replacement |
+| --- | --- | --- |
+| Running track | Flat colored box | Tactile rubber/sand/ice/dirt track surface atlas plus procedural lane markings |
+| Side ground | Flat colored box | Six coordinated biome surface swatches |
+| Player grounding | None | Soft animated oval shadow |
+
+## UI surfaces
+
+| Screen/object | Current render | Replacement or polish |
+| --- | --- | --- |
+| HUD feather count | Diamond character | Feather art icon |
+| Power button | Text-only button | Matching power icon plus text/state |
+| Skin shop cards | Solid color swatches | Actual character skin portraits |
+| Biome medals | Single text line | Bronze/silver/gold badge art and clearer cards |
+| Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents |
+| Touch controls | Arrow text | Mobile remains swipe-only; desktop controls stay unobtrusive |
+| Results/pause/toast | Flat modal panels | Same polished panel language with small character/reward art accents |
+
+## Generated production asset set
+
+The integration uses a small number of high-resolution transparent atlases so mobile draw calls and package size remain controlled:
+
+1. `runner_classic.png`
+2. `runner_midnight.png`
+3. `runner_golden.png`
+4. `runner_bubblegum.png`
+5. `rival_runner.png`
+6. `obstacle_atlas.png` — 3×2 cells
+7. `reward_power_atlas.png` — 3×2 cells
+8. `biome_prop_atlas.png` — 3×2 cells
+9. `effects_medals_atlas.png` — 3×2 cells
+10. `surface_atlas.png` — 3×2 cells
+
+The six surface cells are also losslessly split into `gameplay/surfaces/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
+
+All generated files are stored under `assets/generated/gameplay/` and consumed by code. Existing procedural collision and movement logic remains authoritative even when its placeholder geometry is hidden.
