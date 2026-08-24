@@ -43,7 +43,12 @@ base64 -w 0 /absolute/path/to/upload.keystore
 
 Keep the original keystore and password backed up securely. Losing the Play upload key creates a recovery process; changing the app-signing identity is more consequential.
 
-The workflow intentionally keeps Google's official test banner unit during internal testing. The real AdMob **App ID** is still required because it identifies the mobile app to the SDK. Switching to a production banner unit remains a separate, deliberate release step in `autoload/ad_bar_service.gd`.
+The workflow intentionally keeps Google's official test banner unit during internal testing. The real AdMob **App ID** is still required because it identifies the mobile app to the SDK. Switching to the production Bottom_Bar unit remains a separate, deliberate release step in `autoload/ad_bar_service.gd` (`TODO(ads-live)`).
+
+Recorded production IDs (not served while testing):
+
+- App ID: `ca-app-pub-2846735043546429~8644426679`
+- Banner (Bottom_Bar): `ca-app-pub-2846735043546429/2907894583`
 
 ## One-time Play Console setup
 

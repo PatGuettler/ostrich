@@ -1,5 +1,5 @@
 {
-  "_comment": "Development and closed testing use Google's official test banner. Replace only during release configuration; never test with a production ad unit.",
+  "_comment": "Development and closed testing use Google's official test banner. Production Ostrich Dash IDs (commented in autoload/ad_bar_service.gd until ads-live): App ID ca-app-pub-2846735043546429~8644426679, Bottom_Bar ca-app-pub-2846735043546429/2907894583.",
   "ads_enabled": true,
   "android_ads_enabled": true,
   "ios_ads_enabled": true,
