@@ -10,6 +10,10 @@ builds/
 export.cfg
 export_credentials.cfg
 
+# Play Console artwork is not loaded by the game. Godot may scan it during an
+# editor/export run, but its generated import sidecars do not belong in source.
+store/google-play/**/*.import
+
 # Generated Godot Android build template. Keep only the release overlays.
 /android/*
 !android/.build_version

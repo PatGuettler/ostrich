@@ -57,6 +57,33 @@ func _run() -> void:
 	for i in range(4):
 		await process_frame
 	_save_frame("run_stride_right.png")
+	# Assign the root Window as well as the native window. The desktop override in
+	# project.godot otherwise keeps the capture render target at 1280x720 even
+	# though Android correctly supplies its current surface dimensions.
+	root.size = Vector2i(720, 1280)
+	DisplayServer.window_set_size(Vector2i(720, 1280))
+	for i in range(10):
+		await process_frame
+	game.refresh_ad_layout()
+	_save_frame("portrait_gameplay.png")
+	game._show_menu()
+	for i in range(4):
+		await process_frame
+	_save_frame("portrait_menu.png")
+	game._show_shop()
+	for i in range(4):
+		await process_frame
+	_save_frame("portrait_shop.png")
+	game.shop_layer.visible = false
+	game.menu_layer.visible = false
+	game.player.visible = true
+	game.hud.visible = true
+	game.state = game.GameState.PAUSED
+	root.size = Vector2i(1280, 720)
+	DisplayServer.window_set_size(Vector2i(1280, 720))
+	for i in range(10):
+		await process_frame
+	game.refresh_ad_layout()
 	game._apply_biome(0, true)
 	game._apply_biome(1)
 	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)

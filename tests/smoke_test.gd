@@ -101,19 +101,41 @@ func _run() -> void:
 			push_error("Procedural player geometry is still visible")
 			quit(1)
 			return
+	if int(ProjectSettings.get_setting("display/window/handheld/orientation", -1)) != DisplayServer.SCREEN_SENSOR:
+		push_error("Android orientation is not set to unrestricted sensor rotation")
+		quit(1)
+		return
+	# Exercise a real root-window resize instead of only calling the layout helper.
+	# This catches incorrect anchor offsets that can look valid by size but render
+	# partly off-screen on a portrait Android surface.
+	root.size = Vector2i(720, 1280)
+	await process_frame
+	await process_frame
 	game.validation_ad_reserve = 74.0
 	game.refresh_ad_layout()
 	await process_frame
-	var expected_content_height: float = game.get_viewport().get_visible_rect().size.y - 74.0
+	var portrait_viewport_size := game.get_viewport().get_visible_rect().size
+	var expected_content_height: float = portrait_viewport_size.y - 74.0
 	if (
 		absf(game.game_viewport_container.offset_bottom + 74.0) > 0.1
 		or absf(game.ui_content_root.offset_bottom + 74.0) > 0.1
 		or not game.ad_reserve_rect.visible
 		or absf(game.game_viewport_container.size.y - expected_content_height) > 1.0
 		or absf(game.ui_content_root.size.y - expected_content_height) > 1.0
+		or not game.portrait_layout
+		or game.camera.fov < 80.0
+		or game.hud_stats.columns != 2
+		or game.shop_cards.columns != 2
+		or game.menu_panel.position.x < 0.0
+		or game.menu_panel.position.y < 0.0
+		or game.menu_panel.position.x + game.menu_panel.size.x > portrait_viewport_size.x
+		or game.shop_panel.position.x < 0.0
+		or game.shop_panel.position.y < 0.0
+		or game.shop_panel.position.x + game.shop_panel.size.x > portrait_viewport_size.x
+		or game.shop_panel.position.y + game.shop_panel.size.y > expected_content_height
 	):
 		push_error(
-			"Reserved ad bar layout failed: viewport=%s content=%s offsets=%.1f/%.1f" % [
+			"Portrait/ad-safe layout failed: viewport=%s content=%s offsets=%.1f/%.1f" % [
 				game.game_viewport_container.size,
 				game.ui_content_root.size,
 				game.game_viewport_container.offset_bottom,
@@ -122,9 +144,21 @@ func _run() -> void:
 		)
 		quit(1)
 		return
+	root.size = Vector2i(1280, 720)
+	await process_frame
+	await process_frame
 	game.validation_ad_reserve = 0.0
 	game.refresh_ad_layout()
 	await process_frame
+	if (
+		game.portrait_layout
+		or absf(game.camera.fov - 63.0) > 0.1
+		or game.hud_stats.columns != 4
+		or game.shop_cards.columns != 4
+	):
+		push_error("Landscape layout did not restore its wide-screen camera and grids")
+		quit(1)
+		return
 	game._apply_biome(1, true)
 	if game.stadium_art_root.visible:
 		push_error("Classic stadium artwork remained visible in another biome")
@@ -196,54 +230,65 @@ func _run() -> void:
 		push_error("Mobile mode displayed keyboard-style arrow controls")
 		quit(1)
 		return
-	var touch := InputEventScreenTouch.new()
-	touch.pressed = true
-	touch.position = Vector2(600, 420)
-	game._unhandled_input(touch)
-	touch = InputEventScreenTouch.new()
-	touch.pressed = false
-	touch.position = Vector2(470, 420)
-	game._unhandled_input(touch)
+	_dispatch_swipe(game, Vector2(600, 420), Vector2(470, 420), 7, true)
 	if game.player.lane != 0:
 		push_error("Mobile left swipe did not switch lanes")
 		quit(1)
 		return
-	touch = InputEventScreenTouch.new()
-	touch.pressed = true
-	touch.position = Vector2(600, 500)
-	game._unhandled_input(touch)
-	touch = InputEventScreenTouch.new()
-	touch.pressed = false
-	touch.position = Vector2(600, 360)
-	game._unhandled_input(touch)
+	_dispatch_swipe(game, Vector2(600, 500), Vector2(600, 360), 7, true)
 	if not game.player.jumping:
 		push_error("Mobile upward swipe did not jump")
 		quit(1)
 		return
 	game.player.jumping = false
 	game.player.position.y = 0.0
-	touch = InputEventScreenTouch.new()
-	touch.pressed = true
-	touch.position = Vector2(470, 420)
-	game._unhandled_input(touch)
-	touch = InputEventScreenTouch.new()
-	touch.pressed = false
-	touch.position = Vector2(610, 420)
-	game._unhandled_input(touch)
+	_dispatch_swipe(game, Vector2(470, 420), Vector2(610, 420), 12, true)
 	if game.player.lane != 1:
 		push_error("Mobile right swipe did not switch lanes")
 		quit(1)
 		return
-	touch = InputEventScreenTouch.new()
-	touch.pressed = true
-	touch.position = Vector2(600, 360)
-	game._unhandled_input(touch)
-	touch = InputEventScreenTouch.new()
-	touch.pressed = false
-	touch.position = Vector2(600, 500)
-	game._unhandled_input(touch)
+	_dispatch_swipe(game, Vector2(600, 360), Vector2(600, 500), 12, true)
 	if not game.player.ducking:
 		push_error("Mobile downward swipe did not duck")
+		quit(1)
+		return
+	game.player.ducking = false
+	_dispatch_swipe(game, Vector2(620, 420), Vector2(500, 420), 4, false)
+	if game.player.lane != 0:
+		push_error("Mobile release-only swipe did not switch lanes")
+		quit(1)
+		return
+	_dispatch_swipe(game, Vector2(500, 420), Vector2(620, 420), 4, false)
+	if game.player.lane != 1:
+		push_error("Mobile release-only swipe did not restore the lane")
+		quit(1)
+		return
+	# Reproduce Android's real dispatch order: a full-screen GUI control consumes
+	# the event after _input(), so a swipe implemented only in _unhandled_input()
+	# would fail this integration check.
+	var gui_blocker := Control.new()
+	gui_blocker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gui_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	game.add_child(gui_blocker)
+	var pipeline_touch := InputEventScreenTouch.new()
+	pipeline_touch.index = 9
+	pipeline_touch.pressed = true
+	pipeline_touch.position = Vector2(640, 430)
+	game.get_viewport().push_input(pipeline_touch, true)
+	var pipeline_drag := InputEventScreenDrag.new()
+	pipeline_drag.index = 9
+	pipeline_drag.position = Vector2(500, 430)
+	pipeline_drag.relative = Vector2(-140, 0)
+	game.get_viewport().push_input(pipeline_drag, true)
+	pipeline_touch = InputEventScreenTouch.new()
+	pipeline_touch.index = 9
+	pipeline_touch.pressed = false
+	pipeline_touch.position = Vector2(500, 430)
+	game.get_viewport().push_input(pipeline_touch, true)
+	await process_frame
+	gui_blocker.queue_free()
+	if game.player.lane != 0:
+		push_error("Android-style swipe was swallowed by the GUI input layer")
 		quit(1)
 		return
 	game.mobile_mode = false
@@ -387,3 +432,28 @@ func _run() -> void:
 
 func _has_sprite_descendant(node: Node) -> bool:
 	return not node.find_children("*", "Sprite3D", true, false).is_empty()
+
+func _dispatch_swipe(game: Node, start: Vector2, finish: Vector2, finger: int, include_drag: bool) -> void:
+	var touch := InputEventScreenTouch.new()
+	touch.index = finger
+	touch.pressed = true
+	touch.position = start
+	game._input(touch)
+	if include_drag:
+		var drag := InputEventScreenDrag.new()
+		drag.index = finger
+		drag.position = finish
+		drag.relative = finish - start
+		game._input(drag)
+		# Android can send several drag samples after the threshold. A gesture must
+		# still perform exactly one action before the finger is released.
+		drag = InputEventScreenDrag.new()
+		drag.index = finger
+		drag.position = finish + (finish - start).normalized() * 30.0
+		drag.relative = (finish - start).normalized() * 30.0
+		game._input(drag)
+	touch = InputEventScreenTouch.new()
+	touch.index = finger
+	touch.pressed = false
+	touch.position = finish
+	game._input(touch)

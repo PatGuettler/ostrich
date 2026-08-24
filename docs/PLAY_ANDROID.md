@@ -76,4 +76,4 @@ VERSION_CODE=1 VERSION_NAME=1.0 ./scripts/ci/godot-export-android.sh
 ```
 
 For an emulator/debug APK, use the `Android Debug` export preset. It has a separate debug package (`com.grapegames.ostrichdash.debug`) so it can coexist with the Play build.
-Android is locked to sensor landscape so either landscape rotation works while portrait is excluded.
+Android allows sensor-aware portrait plus both landscape rotations. The camera framing, HUD, menus, results, shop, swipe threshold, and bottom ad-safe area adapt whenever the device orientation changes.

@@ -106,24 +106,33 @@ var shake_time := 0.0
 var elapsed := 0.0
 var touch_start := Vector2.ZERO
 var touch_tracking := false
+var touch_finger := -1
+var touch_action_committed := false
 var last_result: Dictionary = {}
 var last_crash := "spin"
 var mobile_mode := false
 var validation_ad_reserve := 0.0
 var applied_ad_reserve := -1.0
 var ad_preview_mode := false
+var portrait_layout := false
+var camera_home_position := Vector3(0, 5.6, 11.5)
+var camera_look_target := Vector3(0, 2.1, -16.0)
 
 var menu_layer: Control
 var ui_content_root: Control
 var ad_reserve_rect: ColorRect
 var ad_preview_label: Label
 var menu_background: TextureRect
+var menu_panel: PanelContainer
 var privacy_button: Button
+var control_help_label: Label
 var menu_wallet: Label
 var loadout_skin_label: Label
 var loadout_power_button: Button
 var daily_label: Label
 var hud: Control
+var hud_top_panel: PanelContainer
+var hud_stats: GridContainer
 var distance_label: Label
 var feather_label: Label
 var combo_label: Label
@@ -132,17 +141,20 @@ var power_button: Button
 var power_bar: ProgressBar
 var touch_controls: Control
 var result_layer: Control
+var result_panel: PanelContainer
 var result_title: Label
 var result_subtitle: Label
 var result_medal_icon: TextureRect
 var result_stats: Label
 var result_bonus: Label
 var shop_layer: Control
+var shop_panel: PanelContainer
 var shop_wallet: Label
-var shop_cards: HBoxContainer
+var shop_cards: GridContainer
 var shop_medal_row: HBoxContainer
 var shop_medals: Label
 var pause_layer: Control
+var pause_panel: PanelContainer
 var toast_label: Label
 var toast_time := 0.0
 
@@ -159,6 +171,8 @@ func _ready() -> void:
 	else:
 		randomize()
 	mobile_mode = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+	if mobile_mode and DisplayServer.has_feature(DisplayServer.FEATURE_ORIENTATION):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR)
 	ad_preview_mode = "--preview-ad-bar" in OS.get_cmdline_user_args()
 	_build_game_viewport()
 	_build_world()
@@ -189,6 +203,15 @@ func _process(delta: float) -> void:
 	_update_particles(delta)
 
 func _input(event: InputEvent) -> void:
+	# Android GUI controls receive events before _unhandled_input(), so gestures
+	# must be observed here. Keep tracking through release after a committed swipe
+	# to prevent the same finger from also clicking the power button.
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		if state == GameState.RUNNING:
+			_process_touch_gesture(event)
+		elif touch_tracking:
+			_reset_touch_gesture()
+		return
 	# Capture laptop arrow keys before focused UI controls can consume them.
 	if state != GameState.RUNNING or not (event is InputEventKey):
 		return
@@ -210,17 +233,6 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		if event.pressed:
-			touch_start = event.position
-			touch_tracking = true
-		elif touch_tracking:
-			_handle_swipe(event.position - touch_start)
-			touch_tracking = false
-	elif event is InputEventScreenDrag and touch_tracking:
-		if event.position.distance_to(touch_start) > 75.0:
-			_handle_swipe(event.position - touch_start)
-			touch_tracking = false
 	if event.is_action_pressed("pause"):
 		if state == GameState.RUNNING:
 			_pause_game()
@@ -239,20 +251,59 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("power_up"):
 		_activate_power()
 
-func _handle_swipe(delta: Vector2) -> void:
-	if state != GameState.RUNNING or delta.length() < 38.0:
+func _process_touch_gesture(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			if not touch_tracking:
+				touch_start = touch.position
+				touch_tracking = true
+				touch_finger = touch.index
+				touch_action_committed = false
+			return
+		if not touch_tracking or touch.index != touch_finger:
+			return
+		if not touch_action_committed:
+			touch_action_committed = _handle_swipe(touch.position - touch_start)
+		if touch_action_committed:
+			get_viewport().set_input_as_handled()
+		_reset_touch_gesture()
 		return
+	if event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		if not touch_tracking or drag.index != touch_finger:
+			return
+		if not touch_action_committed:
+			touch_action_committed = _handle_swipe(drag.position - touch_start)
+		if touch_action_committed:
+			get_viewport().set_input_as_handled()
+
+func _handle_swipe(delta: Vector2) -> bool:
+	if state != GameState.RUNNING or delta.length() < _swipe_min_distance():
+		return false
 	if absf(delta.x) > absf(delta.y):
 		_move_player(-1 if delta.x < 0.0 else 1)
 	elif delta.y < 0.0:
 		player.jump()
 	else:
 		player.duck()
+	return true
+
+func _swipe_min_distance() -> float:
+	var viewport_size := get_viewport().get_visible_rect().size
+	return clampf(minf(viewport_size.x, viewport_size.y) * 0.055, 30.0, 64.0)
+
+func _reset_touch_gesture() -> void:
+	touch_start = Vector2.ZERO
+	touch_tracking = false
+	touch_finger = -1
+	touch_action_committed = false
 
 func _move_player(direction: int) -> void:
 	player.move_lane(-direction if controls_reversed else direction)
 
 func _start_run() -> void:
+	_reset_touch_gesture()
 	_clear_run_objects()
 	distance = 0.0
 	run_feathers = 0
@@ -497,10 +548,10 @@ func _update_hit(delta: float) -> void:
 	_move_track(delta, speed * maxf(0.0, 1.0 - player.spin_time / 1.2))
 	if shake_time > 0.0:
 		shake_time -= delta
-		camera.position.x = randf_range(-0.22, 0.22) * (shake_time / 0.75)
-		camera.position.y = 5.6 + randf_range(-0.16, 0.16)
+		camera.position.x = camera_home_position.x + randf_range(-0.22, 0.22) * (shake_time / 0.75)
+		camera.position.y = camera_home_position.y + randf_range(-0.16, 0.16)
 	else:
-		camera.position = camera.position.lerp(Vector3(0, 5.6, 11.5), delta * 8.0)
+		camera.position = camera.position.lerp(camera_home_position, delta * 8.0)
 
 func _on_crash_finished() -> void:
 	if state != GameState.HIT:
@@ -824,6 +875,81 @@ func refresh_ad_layout() -> void:
 	if is_instance_valid(ad_preview_label):
 		ad_preview_label.visible = reserve > 0.0 and (ad_preview_mode or validation_ad_reserve > 0.0)
 		ad_preview_label.offset_top = -reserve
+	var viewport_size := get_viewport().get_visible_rect().size
+	_apply_orientation_layout(Vector2(viewport_size.x, maxf(1.0, viewport_size.y - reserve)))
+
+func _apply_orientation_layout(content_size: Vector2) -> void:
+	if content_size.x <= 1.0 or content_size.y <= 1.0:
+		return
+	portrait_layout = content_size.y > content_size.x
+	if portrait_layout:
+		camera_home_position = Vector3(0.0, 5.8, 12.8)
+		camera_look_target = Vector3(0.0, 2.15, -15.0)
+	else:
+		camera_home_position = Vector3(0.0, 5.6, 11.5)
+		camera_look_target = Vector3(0.0, 2.1, -16.0)
+	if is_instance_valid(camera):
+		camera.position = camera_home_position
+		camera.fov = 82.0 if portrait_layout else 63.0
+		camera.look_at_from_position(camera.position, camera_look_target)
+	if not is_instance_valid(ui_content_root):
+		return
+
+	if portrait_layout:
+		_position_center_panel(menu_panel, Vector2(minf(560.0, content_size.x - 32.0), minf(760.0, content_size.y - 32.0)))
+		_position_center_panel(result_panel, Vector2(minf(540.0, content_size.x - 24.0), minf(560.0, content_size.y - 32.0)))
+		_position_center_panel(shop_panel, Vector2(minf(680.0, content_size.x - 24.0), minf(980.0, content_size.y - 32.0)))
+		_position_center_panel(pause_panel, Vector2(minf(440.0, content_size.x - 32.0), 340.0))
+		hud_top_panel.offset_left = 18.0
+		hud_top_panel.offset_top = 16.0
+		hud_top_panel.offset_right = -18.0
+		hud_top_panel.offset_bottom = 166.0
+		hud_stats.columns = 2
+		hud_stats.add_theme_constant_override("h_separation", 6)
+		biome_label.custom_minimum_size.x = 150.0
+		power_bar.position = Vector2(22.0, 178.0)
+		power_bar.size = Vector2(minf(276.0, content_size.x * 0.42), 20.0)
+		shop_cards.columns = 2
+		shop_cards.custom_minimum_size.y = 590.0
+		var toast_width := minf(480.0, content_size.x - 32.0)
+		toast_label.position = Vector2(-toast_width * 0.5, 188.0)
+		toast_label.size = Vector2(toast_width, 58.0)
+	else:
+		menu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+		menu_panel.offset_left = 54.0
+		menu_panel.offset_top = 20.0
+		menu_panel.offset_right = 484.0
+		menu_panel.offset_bottom = -20.0
+		_position_center_panel(result_panel, Vector2(520.0, 500.0))
+		_position_center_panel(shop_panel, Vector2(minf(980.0, content_size.x - 32.0), minf(620.0, content_size.y - 24.0)))
+		_position_center_panel(pause_panel, Vector2(420.0, 320.0))
+		hud_top_panel.offset_left = 26.0
+		hud_top_panel.offset_top = 20.0
+		hud_top_panel.offset_right = -26.0
+		hud_top_panel.offset_bottom = 94.0
+		hud_stats.columns = 4
+		hud_stats.add_theme_constant_override("h_separation", 24)
+		biome_label.custom_minimum_size.x = 240.0
+		power_bar.position = Vector2(34.0, 112.0)
+		power_bar.size = Vector2(265.0, 20.0)
+		shop_cards.columns = 4
+		shop_cards.custom_minimum_size.y = 294.0
+		toast_label.position = Vector2(-240.0, 150.0)
+		toast_label.size = Vector2(480.0, 52.0)
+
+	if mobile_mode:
+		control_help_label.text = "SWIPE LEFT / RIGHT TO MOVE\nSWIPE UP TO JUMP  •  SWIPE DOWN TO DUCK"
+	else:
+		control_help_label.text = "← → switch lanes  •  ↑ jump  •  ↓ duck\nE activate power  •  P pause"
+
+func _position_center_panel(panel: Control, panel_size: Vector2) -> void:
+	if not is_instance_valid(panel):
+		return
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left = -panel_size.x * 0.5
+	panel.offset_top = -panel_size.y * 0.5
+	panel.offset_right = panel_size.x * 0.5
+	panel.offset_bottom = panel_size.y * 0.5
 
 func _build_world() -> void:
 	world = Node3D.new()
@@ -856,9 +982,9 @@ func _build_world() -> void:
 	fill_light.light_energy = 0.7
 	world.add_child(fill_light)
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 5.6, 11.5)
+	camera.position = camera_home_position
 	camera.fov = 63.0
-	camera.look_at_from_position(camera.position, Vector3(0, 2.1, -16.0))
+	camera.look_at_from_position(camera.position, camera_look_target)
 	world.add_child(camera)
 	track_root = Node3D.new()
 	world.add_child(track_root)
@@ -1125,7 +1251,7 @@ func _build_ui() -> void:
 	menu_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	menu_layer.add_child(menu_shade)
 
-	var menu_panel := PanelContainer.new()
+	menu_panel = PanelContainer.new()
 	menu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	menu_panel.offset_left = 54
 	menu_panel.offset_top = 20
@@ -1173,9 +1299,9 @@ func _build_ui() -> void:
 	var shop_button := _button("SKINS & MEDALS", Color("#243b64"), Color("#5c7cbd"), 17)
 	shop_button.pressed.connect(_show_shop)
 	menu_box.add_child(shop_button)
-	var help := _label("← → switch lanes  •  ↑ jump  •  ↓ duck\nE activate power  •  P pause  •  swipe on mobile", 13, Color("#b8c9e5"))
-	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	menu_box.add_child(help)
+	control_help_label = _label("← → switch lanes  •  ↑ jump  •  ↓ duck\nE activate power  •  P pause  •  swipe on mobile", 13, Color("#b8c9e5"))
+	control_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	menu_box.add_child(control_help_label)
 	privacy_button = _button("PRIVACY & DATA", Color(0.025, 0.07, 0.15, 0.88), Color("#79f2e8"), 13)
 	privacy_button.name = "PrivacyAndDataButton"
 	privacy_button.tooltip_text = "Privacy policy and data-deletion instructions"
@@ -1191,22 +1317,23 @@ func _build_ui() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_content_root.add_child(hud)
-	var top_panel := PanelContainer.new()
-	top_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top_panel.offset_left = 26
-	top_panel.offset_top = 20
-	top_panel.offset_right = -26
-	top_panel.offset_bottom = 94
-	top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.06, 0.13, 0.84), Color(1, 1, 1, 0.16), 2, 19))
-	hud.add_child(top_panel)
-	var stats := HBoxContainer.new()
-	stats.alignment = BoxContainer.ALIGNMENT_CENTER
-	stats.add_theme_constant_override("separation", 48)
-	top_panel.add_child(stats)
-	distance_label = _hud_stat(stats, "0m")
-	feather_label = _hud_stat(stats, "◆ 0")
-	combo_label = _hud_stat(stats, "1× COMBO")
-	biome_label = _hud_stat(stats, "CLASSIC STADIUM")
+	hud_top_panel = PanelContainer.new()
+	hud_top_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	hud_top_panel.offset_left = 26
+	hud_top_panel.offset_top = 20
+	hud_top_panel.offset_right = -26
+	hud_top_panel.offset_bottom = 94
+	hud_top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.06, 0.13, 0.84), Color(1, 1, 1, 0.16), 2, 19))
+	hud.add_child(hud_top_panel)
+	hud_stats = GridContainer.new()
+	hud_stats.columns = 4
+	hud_stats.add_theme_constant_override("h_separation", 24)
+	hud_stats.add_theme_constant_override("v_separation", 2)
+	hud_top_panel.add_child(hud_stats)
+	distance_label = _hud_stat(hud_stats, "0m")
+	feather_label = _hud_stat(hud_stats, "◆ 0")
+	combo_label = _hud_stat(hud_stats, "1× COMBO")
+	biome_label = _hud_stat(hud_stats, "CLASSIC STADIUM")
 	biome_label.custom_minimum_size.x = 240
 	power_bar = ProgressBar.new()
 	power_bar.position = Vector2(34, 112)
@@ -1236,7 +1363,7 @@ func _build_ui() -> void:
 	ui_content_root.add_child(touch_controls)
 
 	result_layer = _modal_layer(ui_content_root)
-	var result_panel := _center_panel(result_layer, Vector2(520, 500))
+	result_panel = _center_panel(result_layer, Vector2(520, 500))
 	var result_box := _modal_box(result_panel)
 	result_title = _label("WHAT A SPIN!", 34, Color("#ffd166"))
 	result_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1268,7 +1395,7 @@ func _build_ui() -> void:
 	result_box.add_child(home)
 
 	shop_layer = _modal_layer(ui_content_root)
-	var shop_panel := _center_panel(shop_layer, Vector2(980, 620))
+	shop_panel = _center_panel(shop_layer, Vector2(980, 620))
 	var shop_box := _modal_box(shop_panel)
 	var shop_heading := _label("SKINS & BIOME MEDALS", 32, Color.WHITE)
 	shop_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1276,9 +1403,10 @@ func _build_ui() -> void:
 	shop_wallet = _label("", 17, Color("#ffe89a"))
 	shop_wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	shop_box.add_child(shop_wallet)
-	shop_cards = HBoxContainer.new()
-	shop_cards.alignment = BoxContainer.ALIGNMENT_CENTER
-	shop_cards.add_theme_constant_override("separation", 12)
+	shop_cards = GridContainer.new()
+	shop_cards.columns = 4
+	shop_cards.add_theme_constant_override("h_separation", 12)
+	shop_cards.add_theme_constant_override("v_separation", 12)
 	shop_cards.custom_minimum_size.y = 294
 	shop_box.add_child(shop_cards)
 	shop_medal_row = HBoxContainer.new()
@@ -1295,7 +1423,7 @@ func _build_ui() -> void:
 	shop_box.add_child(shop_back)
 
 	pause_layer = _modal_layer(ui_content_root)
-	var pause_panel := _center_panel(pause_layer, Vector2(420, 320))
+	pause_panel = _center_panel(pause_layer, Vector2(420, 320))
 	var pause_box := _modal_box(pause_panel)
 	var paused_title := _label("PAUSED", 38, Color.WHITE)
 	paused_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1349,7 +1477,8 @@ func _show_menu() -> void:
 	player.active = false
 	player.stunned = false
 	player.visible = false
-	camera.position = Vector3(0, 5.6, 11.5)
+	camera.position = camera_home_position
+	camera.look_at_from_position(camera.position, camera_look_target)
 	_refresh_menu()
 
 func _refresh_menu() -> void:

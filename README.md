@@ -19,6 +19,7 @@ Controls:
 - E or Q: activate a fully charged power-up
 - P or Escape: pause
 - Mobile: swipe sideways to switch lanes, swipe up to jump, and swipe down to duck; no on-screen arrow buttons are created
+- Android: rotate the device at any time; gameplay, menus, HUD, shop, camera framing, and the ad-safe area reflow for portrait or landscape
 
 ## Included systems
 
@@ -43,7 +44,7 @@ Run the automated menu/gameplay smoke test with:
 godot --headless --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/smoke_test.gd
 ```
 
-Create deterministic 1280×720 visual-audit captures for every biome, both obstacle groups, effects, the trip pose, and the shop with:
+Create deterministic visual-audit captures for every biome, both obstacle groups, effects, the trip pose, the shop, and portrait gameplay/menu/shop layouts with:
 
 ```bash
 godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_capture.gd
