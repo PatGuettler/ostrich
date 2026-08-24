@@ -181,19 +181,25 @@ func _bar_flip_animation(delta: float) -> void:
 	var duration := 1.65
 	var t := minf(spin_time / duration, 1.0)
 	var eased := t * t * (3.0 - 2.0 * t)
-	var angle := -TAU * eased
+	var forward_angle := TAU * eased
+	var depth_projection := cos(forward_angle)
 
-	# Rotate the runner plate around a fixed point at the base of the neck rather
-	# than around its body center. This carries the feet from track level, over
-	# the head and crossbar, then back down to the track in one readable arc.
+	# Project a rotation around the track's left/right axis into the rear camera.
+	# The sprite foreshortens vertically as the feet swing forward in depth, then
+	# appears inverted overhead before opening back out on the far side. Keeping x
+	# centered prevents this from reading as a screen-plane cartwheel.
 	var neck_pivot := Vector2(0.0, 4.05)
 	var upright_center := Vector2(0.0, 2.53)
-	var flipped_center := neck_pivot + (upright_center - neck_pivot).rotated(angle)
+	var projected_center := neck_pivot + (upright_center - neck_pivot) * depth_projection
 	var landing := smoothstep(0.82, 1.0, t)
-	character_sprite.position.x = flipped_center.x
-	character_sprite.position.y = flipped_center.y - landing * 0.38
-	character_sprite.rotation.z = angle + landing * 0.08
-	character_sprite.scale = Vector3(1.0 + landing * 0.12, 1.0 - landing * 0.16, 1.0)
+	character_sprite.position.x = 0.0
+	character_sprite.position.y = projected_center.y - landing * 0.38
+	character_sprite.rotation.z = landing * 0.08
+	character_sprite.scale = Vector3(
+		1.0 + landing * 0.12,
+		depth_projection * (1.0 - landing * 0.16),
+		1.0
+	)
 	visual.position.z = -eased * 1.25
 	visual.position.y = sin(t * PI) * 0.16
 	left_leg.rotation.x = lerpf(left_leg.rotation.x, 1.2, delta * 8.0)

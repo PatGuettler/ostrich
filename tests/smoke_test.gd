@@ -282,8 +282,13 @@ func _run() -> void:
 	game._trigger_hit(game.player, "bar")
 	for frame in range(50):
 		await process_frame
-	if game.player.character_sprite.position.y < 5.25 or absf(game.player.character_sprite.rotation.z) < 2.7:
-		push_error("Tall-gate collision did not carry the runner's feet over the neck pivot")
+	if (
+		game.player.character_sprite.position.y < 5.25
+		or game.player.character_sprite.scale.y > -0.85
+		or absf(game.player.character_sprite.position.x) > 0.05
+		or absf(game.player.character_sprite.rotation.z) > 0.05
+	):
+		push_error("Tall-gate collision did not project the feet forward and overhead")
 		quit(1)
 		return
 	for frame in range(80):
