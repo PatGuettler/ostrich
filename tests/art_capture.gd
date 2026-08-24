@@ -12,6 +12,7 @@ func _run() -> void:
 	if "--store-listing" in OS.get_cmdline_user_args():
 		output_dir = STORE_OUTPUT_DIR
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
+	seed(20260823)
 	DisplayServer.window_set_size(Vector2i(1280, 720))
 	var error := change_scene_to_file("res://scenes/main.tscn")
 	if error != OK:
