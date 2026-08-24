@@ -27,7 +27,7 @@ Controls:
 - Hurdles, walls, cones, drones, slippery patches, and rival runners
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art
-- Background changes every 225 meters; non-stadium biomes are reshuffled for every complete tour with no consecutive repeats
+- Background changes every 225 meters through a coordinated 4.5-second vista, lighting, fog, track-material, and prop transition; non-stadium biomes are reshuffled for every complete tour with no consecutive repeats
 - Distance score, clean-dodge combo, near-misses, feathers, and personal best
 - Shield, Magnet, Slow-Mo, and Score Rush chargeable power-ups
 - Persistent feather wallet, four unlockable skins, and biome medals

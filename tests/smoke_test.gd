@@ -60,6 +60,12 @@ func _run() -> void:
 			push_error("Missing generated gameplay art: %s" % art_path)
 			quit(1)
 			return
+	for surface_path in game.SURFACE_PATHS:
+		var surface_texture := load(surface_path) as Texture2D
+		if surface_texture == null or surface_texture.get_width() < 1200 or surface_texture.get_height() < 1200:
+			push_error("Gameplay surface is not using the high-detail production asset: %s" % surface_path)
+			quit(1)
+			return
 	if not is_instance_valid(game.player.character_sprite) or game.player.character_sprite.texture == null:
 		push_error("Generated runner art is not active")
 		quit(1)
@@ -113,6 +119,11 @@ func _run() -> void:
 				push_error("Biome background visibility mismatch")
 				quit(1)
 				return
+		var vista := game.biome_art_roots[biome_index].get_child(0) as Sprite3D
+		if vista == null or vista.scale.x + 0.001 < game.VISTA_OVERSCAN or vista.scale.y + 0.001 < game.VISTA_OVERSCAN:
+			push_error("Biome vista does not overscan the camera frame")
+			quit(1)
+			return
 	game._apply_biome(0, true)
 	if not game.stadium_art_root.visible:
 		push_error("Classic stadium artwork did not restore")
@@ -126,6 +137,29 @@ func _run() -> void:
 		push_error("Classic stadium contains duplicate foreground prop plates")
 		quit(1)
 		return
+	game._apply_biome(1)
+	if (
+		not game.biome_transition_active
+		or not game.biome_art_roots[0].visible
+		or not game.biome_art_roots[1].visible
+	):
+		push_error("Biome change did not begin as a two-vista gradual transition")
+		quit(1)
+		return
+	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)
+	var transition_vista := game.biome_art_roots[1].get_child(0) as Sprite3D
+	var vista_progress: float = game.transition_vista_material.get_shader_parameter("transition_progress")
+	var surface_blend: float = game.transition_road_material.get_shader_parameter("blend_amount")
+	if transition_vista.material_override == null or vista_progress < 0.4 or vista_progress > 0.44 or surface_blend < 0.45 or surface_blend > 0.55:
+		push_error("Biome vista and track did not blend together at transition midpoint")
+		quit(1)
+		return
+	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5 + 0.01)
+	if game.biome_transition_active or game.biome_art_roots[0].visible or not game.biome_art_roots[1].visible:
+		push_error("Biome transition did not settle cleanly on the incoming vista")
+		quit(1)
+		return
+	game._apply_biome(0, true)
 	game._shuffle_biome_sequence()
 	var unique_biomes: Dictionary = {}
 	for biome_index in game.biome_sequence:

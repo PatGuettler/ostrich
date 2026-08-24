@@ -82,6 +82,14 @@ Opaque top-down, seamless, uniformly lit material swatches:
 
 Godot's 3D material path does not sample `AtlasTexture` regions consistently, so the surface atlas is losslessly split into the six runtime textures under `surfaces/` by `scripts/ci/split_surface_atlas.gd`. The atlas remains the generated source of truth.
 
+## High-detail runtime surfaces
+
+The original 512×512 split swatches remain as recoverable source assets. Gameplay now uses six separately generated 1254×1254 materials under `surfaces/hd/`: `classic_rubber_hd.png`, `beach_sand_hd.png`, `night_track_hd.png`, `desert_clay_hd.png`, `snow_pack_hd.png`, and `jungle_earth_hd.png`.
+
+Each was created in built-in image-generation edit mode using its matching original swatch as the strict palette and material reference. The shared prompt requested a top-down orthographic, evenly lit, seamless tile with crisp large-, medium-, and fine-scale material structure, no objects, markings, text, perspective, blurry regions, or obvious repeated motifs. Biome-specific prompts called for rubber crumb and micro-pitting; fine sand grains and mineral variation; midnight recycled rubber; compacted clay and grit; packed snow crystals and ice chips; or moist soil, organic fiber, moss fronds, leaves, and pebbles.
+
+At runtime the HD swatches repeat four times per 24-meter track tile. All generated image imports include mipmaps, and 3D sprites/materials plus image-bearing UI controls request anisotropic mipmapped filtering. This prevents one low-frequency image from being enlarged across an entire world tile and preserves detail under camera perspective.
+
 ## Alpha handling
 
 Every transparent runtime asset is validated with `scripts/ci/check_image_alpha.gd`. Some generated atlas responses visually baked the preview checkerboard; those were first sent through the image generator's background-extraction mode. Two remaining checker-backed atlases were then mechanically converted to true RGBA using `scripts/ci/remove_checker_alpha.gd`, which flood-fills only bright neutral pixels connected to the canvas edge so cream art and colored glows remain intact.

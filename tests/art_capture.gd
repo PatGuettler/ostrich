@@ -36,6 +36,13 @@ func _run() -> void:
 			await process_frame
 		_save_frame("biome_%d_%s.png" % [biome_index, game.BIOMES[biome_index].name.to_lower().replace(" ", "_")])
 	game._apply_biome(0, true)
+	game._apply_biome(1)
+	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)
+	game.toast_label.visible = false
+	for i in range(8):
+		await process_frame
+	_save_frame("biome_transition_midpoint.png")
+	game._apply_biome(0, true)
 	game.toast_label.visible = false
 	game.player.visible = false
 	game._clear_run_objects()

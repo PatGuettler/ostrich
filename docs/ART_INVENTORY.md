@@ -77,8 +77,8 @@ This is the production checklist for bringing every visible gameplay element up 
 
 | Surface | Current render | Replacement |
 | --- | --- | --- |
-| Running track | Flat colored box | Tactile rubber/sand/ice/dirt track surface atlas plus procedural lane markings |
-| Side ground | Flat colored box | Six coordinated biome surface swatches |
+| Running track | Flat colored box | Six 1254×1254 high-detail rubber/sand/ice/dirt materials, tiled at world scale, plus procedural lane markings |
+| Side ground | Flat colored box | Six coordinated high-detail biome materials with mipmapped anisotropic filtering |
 | Player grounding | None | Soft animated oval shadow |
 
 ## UI surfaces
@@ -113,6 +113,6 @@ The integration uses a small number of high-resolution transparent plates and at
 14. `effects_medals_atlas.png` — 3×2 cells
 15. `surface_atlas.png` — 3×2 cells
 
-The six surface cells are also losslessly split into `gameplay/surfaces/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
+The six surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses the separately generated 1254×1254 production materials in `gameplay/surfaces/hd/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 
 All generated files are stored under `assets/generated/gameplay/` and consumed by code. Existing procedural collision and movement logic remains authoritative even when its placeholder geometry is hidden.

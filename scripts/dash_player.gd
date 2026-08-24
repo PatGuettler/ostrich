@@ -332,6 +332,7 @@ func _build_ostrich() -> void:
 	character_sprite.texture = load(SKIN_TEXTURE_PATHS[0])
 	character_sprite.position = Vector3(0.0, 2.53, -0.08)
 	character_sprite.pixel_size = 0.00335
+	character_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	# The gameplay camera is fixed, so the runner plate can stay in the track
 	# plane. Avoiding billboarding lets trip/spin rotations remain fully visible.
 	character_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED

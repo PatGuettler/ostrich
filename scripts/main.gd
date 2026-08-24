@@ -13,7 +13,11 @@ const BIOMES := [
 ]
 const LANES := [-2.8, 0.0, 2.8]
 const BIOME_DISTANCE := 225.0
+const BIOME_TRANSITION_DURATION := 4.5
 const AD_PREVIEW_HEIGHT := 74.0
+const VISTA_OVERSCAN := 1.38
+const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034]
+const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94]
 const PRIVACY_POLICY_URL := "https://patguettler.github.io/privacy-policy.html"
 const DATA_DELETION_URL := "https://patguettler.github.io/privacy-policy.html#data-deletion"
 const BIOME_BACKDROP_PATHS := [
@@ -43,12 +47,12 @@ const BIOME_PROP_ATLAS_PATH := "res://assets/generated/gameplay/biome_prop_atlas
 const EFFECTS_MEDALS_ATLAS_PATH := "res://assets/generated/gameplay/effects_medals_atlas.png"
 const SURFACE_ATLAS_PATH := "res://assets/generated/gameplay/surface_atlas.png"
 const SURFACE_PATHS := [
-	"res://assets/generated/gameplay/surfaces/classic_rubber.png",
-	"res://assets/generated/gameplay/surfaces/beach_sand.png",
-	"res://assets/generated/gameplay/surfaces/night_track.png",
-	"res://assets/generated/gameplay/surfaces/desert_clay.png",
-	"res://assets/generated/gameplay/surfaces/snow_pack.png",
-	"res://assets/generated/gameplay/surfaces/jungle_earth.png"
+	"res://assets/generated/gameplay/surfaces/hd/classic_rubber_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/beach_sand_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/night_track_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/desert_clay_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/snow_pack_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/jungle_earth_hd.png"
 ]
 const OBSTACLE_CELLS := {"wall": 0, "bar": 1, "cone": 2, "drone": 3, "slip": 4}
 
@@ -83,6 +87,16 @@ var current_biome := 0
 var last_biome := -1
 var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5]
 var biome_tour := 0
+var biome_transition_active := false
+var biome_transition_elapsed := 0.0
+var biome_transition_from := 0
+var biome_transition_to := 0
+var biome_transition_props_swapped := false
+var surface_blend_shader: Shader
+var vista_transition_shader: Shader
+var transition_vista_material: ShaderMaterial
+var transition_road_material: ShaderMaterial
+var transition_ground_material: ShaderMaterial
 var power_charge := 0.0
 var power_timer := 0.0
 var shield_active := false
@@ -289,6 +303,7 @@ func _update_run(delta: float) -> void:
 	if next_biome != current_biome:
 		current_biome = next_biome
 		_apply_biome(current_biome)
+	_update_biome_transition(delta)
 	_update_hud()
 
 func _update_power(delta: float) -> void:
@@ -532,35 +547,224 @@ func _move_track(delta: float, move_speed: float) -> void:
 func _apply_biome(index: int, immediate := false) -> void:
 	if index == last_biome and not immediate:
 		return
+	var from_index := last_biome
 	last_biome = index
+	if immediate or from_index < 0:
+		biome_transition_active = false
+		transition_vista_material = null
+		transition_road_material = null
+		transition_ground_material = null
+		_set_biome_art_immediate(index)
+		_apply_biome_environment(index)
+		_set_biome_surfaces(index)
+		_rebuild_props(index)
+		biome_label.text = BIOMES[index].name.to_upper()
+		return
+	_start_biome_transition(from_index, index)
+	biome_label.text = BIOMES[index].name.to_upper()
+	if state == GameState.RUNNING:
+		_show_toast("ENTERING — %s" % BIOMES[index].name.to_upper())
+
+func _start_biome_transition(from_index: int, to_index: int) -> void:
+	biome_transition_active = true
+	biome_transition_elapsed = 0.0
+	biome_transition_from = from_index
+	biome_transition_to = to_index
+	biome_transition_props_swapped = false
+	for art_index in range(biome_art_roots.size()):
+		var art_root := biome_art_roots[art_index]
+		art_root.visible = art_index == from_index or art_index == to_index
+		var vista := art_root.get_child(0) as Sprite3D
+		vista.position.z = -126.0
+		vista.render_priority = -2
+		vista.modulate = Color.WHITE
+		vista.material_override = null
+	var incoming_vista := biome_art_roots[to_index].get_child(0) as Sprite3D
+	incoming_vista.position.z = -125.8
+	incoming_vista.render_priority = -1
+	transition_vista_material = _vista_reveal_material(incoming_vista.texture)
+	incoming_vista.material_override = transition_vista_material
+	transition_road_material = _surface_blend_material(
+		from_index,
+		to_index,
+		_road_tint(from_index),
+		_road_tint(to_index),
+		0.93
+	)
+	transition_ground_material = _surface_blend_material(
+		from_index,
+		to_index,
+		_ground_tint(from_index),
+		_ground_tint(to_index),
+		0.97
+	)
+	for tile in track_tiles:
+		(tile.get_node("Road") as MeshInstance3D).material_override = transition_road_material
+		(tile.get_node("Ground") as MeshInstance3D).material_override = transition_ground_material
+
+func _update_biome_transition(delta: float) -> void:
+	if not biome_transition_active:
+		return
+	biome_transition_elapsed += delta
+	var t := clampf(biome_transition_elapsed / BIOME_TRANSITION_DURATION, 0.0, 1.0)
+	var eased := t * t * (3.0 - 2.0 * t)
+	transition_vista_material.set_shader_parameter("transition_progress", lerpf(-0.12, 0.96, eased))
+	_blend_biome_environment(biome_transition_from, biome_transition_to, eased)
+	transition_road_material.set_shader_parameter("blend_amount", eased)
+	transition_ground_material.set_shader_parameter("blend_amount", eased)
+	if not biome_transition_props_swapped:
+		_set_prop_alpha(1.0 - smoothstep(0.12, 0.48, t))
+		if t >= 0.5:
+			_rebuild_props(biome_transition_to)
+			_set_prop_alpha(0.0)
+			biome_transition_props_swapped = true
+	else:
+		_set_prop_alpha(smoothstep(0.52, 0.9, t))
+	if t >= 1.0:
+		biome_transition_active = false
+		_set_biome_art_immediate(biome_transition_to)
+		_apply_biome_environment(biome_transition_to)
+		_set_biome_surfaces(biome_transition_to)
+		_set_prop_alpha(1.0)
+		transition_vista_material = null
+		transition_road_material = null
+		transition_ground_material = null
+
+func _set_biome_art_immediate(index: int) -> void:
+	for art_index in range(biome_art_roots.size()):
+		var art_root := biome_art_roots[art_index]
+		art_root.visible = art_index == index
+		var vista := art_root.get_child(0) as Sprite3D
+		vista.position.z = -126.0
+		vista.render_priority = -2
+		vista.modulate = Color.WHITE
+		vista.material_override = null
+
+func _apply_biome_environment(index: int) -> void:
 	var biome: Dictionary = BIOMES[index]
 	var env := world_environment.environment
 	env.background_color = biome.sky
 	env.fog_light_color = biome.sky
 	# Generated vistas carry their own atmospheric perspective. Heavy engine fog
 	# was bleaching the distant art into a flat cyan wash.
-	var fog_densities := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034]
-	env.fog_density = fog_densities[index]
+	env.fog_density = BIOME_FOG_DENSITIES[index]
 	env.fog_sky_affect = 0.18
 	env.ambient_light_color = biome.sky.lightened(0.35)
-	var exposures := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94]
-	env.tonemap_exposure = exposures[index]
+	env.tonemap_exposure = BIOME_EXPOSURES[index]
 	env.ambient_light_energy = 0.56 if index != 2 else 0.34
 	sun.light_color = Color("#fff1cf") if index != 2 else Color("#8fb8ff")
 	sun.light_energy = 1.02 if index != 2 else 0.68
 	fill_light.light_color = biome.accent
 	fill_light.light_energy = 2.2 if index == 2 else 0.7
-	for art_index in range(biome_art_roots.size()):
-		biome_art_roots[art_index].visible = art_index == index
+
+func _blend_biome_environment(from_index: int, to_index: int, amount: float) -> void:
+	var from_biome: Dictionary = BIOMES[from_index]
+	var to_biome: Dictionary = BIOMES[to_index]
+	var from_sky: Color = from_biome.sky
+	var to_sky: Color = to_biome.sky
+	var env := world_environment.environment
+	env.background_color = from_sky.lerp(to_sky, amount)
+	env.fog_light_color = from_sky.lerp(to_sky, amount)
+	env.fog_density = lerpf(BIOME_FOG_DENSITIES[from_index], BIOME_FOG_DENSITIES[to_index], amount)
+	env.fog_sky_affect = 0.18
+	env.ambient_light_color = from_sky.lightened(0.35).lerp(to_sky.lightened(0.35), amount)
+	env.tonemap_exposure = lerpf(BIOME_EXPOSURES[from_index], BIOME_EXPOSURES[to_index], amount)
+	env.ambient_light_energy = lerpf(_ambient_energy(from_index), _ambient_energy(to_index), amount)
+	sun.light_color = _sun_color(from_index).lerp(_sun_color(to_index), amount)
+	sun.light_energy = lerpf(_sun_energy(from_index), _sun_energy(to_index), amount)
+	var from_accent: Color = from_biome.accent
+	var to_accent: Color = to_biome.accent
+	fill_light.light_color = from_accent.lerp(to_accent, amount)
+	fill_light.light_energy = lerpf(_fill_energy(from_index), _fill_energy(to_index), amount)
+
+func _ambient_energy(index: int) -> float:
+	return 0.34 if index == 2 else 0.56
+
+func _sun_color(index: int) -> Color:
+	return Color("#8fb8ff") if index == 2 else Color("#fff1cf")
+
+func _sun_energy(index: int) -> float:
+	return 0.68 if index == 2 else 1.02
+
+func _fill_energy(index: int) -> float:
+	return 2.2 if index == 2 else 0.7
+
+func _road_tint(index: int) -> Color:
+	return Color("#b8d8e8") if index == 4 else Color.WHITE
+
+func _ground_tint(index: int) -> Color:
+	return Color("#a9cbd9") if index == 4 else BIOMES[index].ground.lightened(0.14)
+
+func _set_biome_surfaces(index: int) -> void:
+	var road_material := _surface_material(index, _road_tint(index), 0.93)
+	var ground_material := _surface_material(index, _ground_tint(index), 0.97)
 	for tile in track_tiles:
 		var road: MeshInstance3D = tile.get_node("Road")
-		road.material_override = _surface_material(index, Color.WHITE, 0.93)
+		road.material_override = road_material
 		var sides: MeshInstance3D = tile.get_node("Ground")
-		sides.material_override = _surface_material(index, biome.ground.lightened(0.14), 0.97)
-	_rebuild_props(index)
-	biome_label.text = biome.name.to_upper()
-	if state == GameState.RUNNING and not immediate:
-		_show_toast("NEW BIOME — %s" % biome.name.to_upper())
+		sides.material_override = ground_material
+
+func _surface_blend_material(from_index: int, to_index: int, from_tint: Color, to_tint: Color, roughness: float) -> ShaderMaterial:
+	if surface_blend_shader == null:
+		surface_blend_shader = Shader.new()
+		surface_blend_shader.code = """
+shader_type spatial;
+render_mode depth_draw_opaque, cull_back;
+
+uniform sampler2D from_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D to_texture : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform vec4 from_tint : source_color = vec4(1.0);
+uniform vec4 to_tint : source_color = vec4(1.0);
+uniform float blend_amount : hint_range(0.0, 1.0) = 0.0;
+uniform float material_roughness : hint_range(0.0, 1.0) = 0.95;
+
+void fragment() {
+	vec2 tiled_uv = UV * 4.0;
+	vec3 from_color = texture(from_texture, tiled_uv).rgb * from_tint.rgb;
+	vec3 to_color = texture(to_texture, tiled_uv).rgb * to_tint.rgb;
+	ALBEDO = mix(from_color, to_color, blend_amount);
+	ROUGHNESS = material_roughness;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = surface_blend_shader
+	material.set_shader_parameter("from_texture", load(SURFACE_PATHS[from_index]))
+	material.set_shader_parameter("to_texture", load(SURFACE_PATHS[to_index]))
+	material.set_shader_parameter("from_tint", from_tint)
+	material.set_shader_parameter("to_tint", to_tint)
+	material.set_shader_parameter("blend_amount", 0.0)
+	material.set_shader_parameter("material_roughness", roughness)
+	return material
+
+func _vista_reveal_material(texture: Texture2D) -> ShaderMaterial:
+	if vista_transition_shader == null:
+		vista_transition_shader = Shader.new()
+		vista_transition_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+
+uniform sampler2D vista_texture : source_color, repeat_disable, filter_linear_mipmap_anisotropic;
+uniform float transition_progress : hint_range(-0.2, 1.0) = -0.12;
+
+void fragment() {
+	vec4 color = texture(vista_texture, UV);
+	vec2 from_horizon = (UV - vec2(0.5, 0.55)) * vec2(1.35, 0.9);
+	float horizon_distance = length(from_horizon);
+	float reveal = 1.0 - smoothstep(transition_progress - 0.10, transition_progress + 0.10, horizon_distance);
+	ALBEDO = color.rgb;
+	ALPHA = color.a * reveal;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = vista_transition_shader
+	material.set_shader_parameter("vista_texture", texture)
+	material.set_shader_parameter("transition_progress", -0.12)
+	return material
+
+func _set_prop_alpha(alpha: float) -> void:
+	for child in prop_root.get_children():
+		if child is Sprite3D:
+			(child as Sprite3D).modulate.a = alpha
 
 func _rebuild_props(index: int) -> void:
 	for child in prop_root.get_children():
@@ -693,6 +897,10 @@ func _build_stadium_art() -> void:
 	vista.texture = load("res://assets/generated/classic_stadium_vista.png")
 	vista.position = Vector3(0.0, 15.0, -126.0)
 	vista.pixel_size = 0.15
+	# Treat the 16:9 vista like a cover image. Overscan keeps the environment
+	# color from appearing at the trapezoidal edges on wide screens or shake.
+	vista.scale = Vector3.ONE * VISTA_OVERSCAN
+	vista.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	vista.shaded = false
 	vista.double_sided = true
 	vista.render_priority = -2
@@ -711,6 +919,8 @@ func _build_biome_backdrops() -> void:
 		vista.texture = load(BIOME_BACKDROP_PATHS[biome_index])
 		vista.position = Vector3(0.0, 15.0, -126.0)
 		vista.pixel_size = 0.15
+		vista.scale = Vector3.ONE * VISTA_OVERSCAN
+		vista.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		vista.shaded = false
 		vista.double_sided = true
 		vista.render_priority = -2
@@ -814,6 +1024,7 @@ func _sprite_3d(parent: Node3D, texture: Texture2D, pos: Vector3, pixel_size: fl
 	sprite.position = pos
 	sprite.pixel_size = pixel_size
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	sprite.shaded = false
 	sprite.double_sided = true
 	sprite.render_priority = 2
@@ -826,6 +1037,10 @@ func _surface_material(index: int, tint: Color, roughness: float) -> StandardMat
 	mat.albedo_texture = load(SURFACE_PATHS[clampi(index, 0, SURFACE_PATHS.size() - 1)])
 	mat.albedo_color = tint
 	mat.roughness = roughness
+	# Repeat the higher-density swatch across each 24 m track tile instead of
+	# enlarging one image over the entire tile. This keeps rubber crumbs, sand
+	# grains, ice crystals, and soil detail at a believable gameplay scale.
+	mat.uv1_scale = Vector3(4.0, 4.0, 4.0)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	return mat
 
@@ -897,6 +1112,7 @@ func _build_ui() -> void:
 	menu_background = TextureRect.new()
 	menu_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	menu_background.texture = load("res://assets/generated/ostrich_dash_key_art.png")
+	menu_background.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	menu_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	menu_background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	menu_layer.add_child(menu_background)
@@ -1031,6 +1247,7 @@ func _build_ui() -> void:
 	result_medal_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	result_medal_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	result_medal_icon.texture = _atlas_texture(EFFECTS_MEDALS_ATLAS_PATH, 3, 2, 3)
+	result_medal_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	result_box.add_child(result_medal_icon)
 	result_stats = _label("", 21, Color.WHITE)
 	result_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1171,6 +1388,7 @@ func _rebuild_shop_cards() -> void:
 		medal_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		medal_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		medal_icon.texture = _atlas_texture(EFFECTS_MEDALS_ATLAS_PATH, 3, 2, _medal_cell(medal_name))
+		medal_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		medal_icon.modulate.a = 0.22 if medal_name == "—" else 1.0
 		medal_icon.tooltip_text = "%s — %s medal" % [BIOMES[biome_index].name, medal_name]
 		shop_medal_row.add_child(medal_icon)
@@ -1194,6 +1412,7 @@ func _rebuild_shop_cards() -> void:
 		var portrait := TextureRect.new()
 		portrait.name = "%sRunnerPortrait" % GameManager.SKINS[index]
 		portrait.texture = load(RUNNER_ART_PATHS[index])
+		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		portrait.custom_minimum_size = Vector2(128, 130)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1275,6 +1494,7 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 func _button(text_value: String, base: Color, border: Color, font_size: int) -> Button:
 	var button := Button.new()
 	button.text = text_value
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	button.custom_minimum_size.y = 48
 	button.add_theme_font_size_override("font_size", font_size)
 	button.add_theme_color_override("font_color", Color.WHITE)

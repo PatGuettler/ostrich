@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://p4galbdgj2te"
-path="res://.godot/imported/rival_runner_back.png-d6ae8471a9d94f622806033d85e960ad.ctex"
+uid="uid://d1fo6fyv64q3x"
+path="res://.godot/imported/desert_clay_hd.png-cbf363609224ee3456f21ac2b2ec2407.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/generated/gameplay/rival_runner_back.png"
-dest_files=["res://.godot/imported/rival_runner_back.png-d6ae8471a9d94f622806033d85e960ad.ctex"]
+source_file="res://assets/generated/gameplay/surfaces/hd/desert_clay_hd.png"
+dest_files=["res://.godot/imported/desert_clay_hd.png-cbf363609224ee3456f21ac2b2ec2407.ctex"]
 
 [params]
 
