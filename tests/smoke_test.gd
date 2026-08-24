@@ -346,6 +346,31 @@ func _run() -> void:
 				push_error("Duck-under gate is not visually tall enough")
 				quit(1)
 				return
+		elif kind == "rival":
+			var rival_item: Dictionary = game.obstacles[-1]
+			var left_pivot := spawned.get_node_or_null("RivalRunningVisual/RivalLeftStride") as Node3D
+			var right_pivot := spawned.get_node_or_null("RivalRunningVisual/RivalRightStride") as Node3D
+			var rival_shadow := spawned.get_node_or_null("RivalGroundShadow") as MeshInstance3D
+			if left_pivot == null or right_pivot == null or rival_shadow == null:
+				push_error("Rival ostrich is missing its running rig or planted shadow")
+				quit(1)
+				return
+			game.elapsed = 0.0
+			rival_item.phase = PI * 0.5
+			game._animate_rival_runner(rival_item, 18.0)
+			var rival_left_stride_a: float = left_pivot.rotation.x
+			var rival_right_stride_a: float = right_pivot.rotation.x
+			rival_item.phase = PI * 1.5
+			game._animate_rival_runner(rival_item, 18.0)
+			if (
+				rival_left_stride_a * left_pivot.rotation.x >= 0.0
+				or rival_right_stride_a * right_pivot.rotation.x >= 0.0
+				or rival_left_stride_a * rival_right_stride_a >= 0.0
+				or absf(rival_left_stride_a) < 0.55
+			):
+				push_error("Rival ostrich leg layers did not alternate through a running stride")
+				quit(1)
+				return
 	game._spawn_feather(1, -18.0)
 	if not _has_sprite_descendant(game.feathers[-1].node):
 		push_error("Generated feather pickup art is missing")
@@ -363,6 +388,25 @@ func _run() -> void:
 			quit(1)
 			return
 	game._start_run()
+	if game.spawn_meter < 20.0:
+		push_error("A new run does not provide enough space before its first obstacle")
+		quit(1)
+		return
+	game.distance = 0.0
+	for i in range(12):
+		var early_gap: float = game._next_spawn_gap()
+		if early_gap < game.SPAWN_GAP_MIN or early_gap > game.SPAWN_GAP_MAX:
+			push_error("Early obstacle spacing fell outside the relaxed range")
+			quit(1)
+			return
+	game.distance = 3000.0
+	for i in range(12):
+		var late_gap: float = game._next_spawn_gap()
+		if late_gap < game.SPAWN_GAP_MIN - game.SPAWN_GAP_RAMP_REDUCTION or late_gap > game.SPAWN_GAP_MAX - game.SPAWN_GAP_RAMP_REDUCTION:
+			push_error("Late obstacle spacing became too dense")
+			quit(1)
+			return
+	game.distance = 0.0
 	var arrow := InputEventKey.new()
 	arrow.pressed = true
 	arrow.keycode = KEY_LEFT

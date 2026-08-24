@@ -112,6 +112,21 @@ func _run() -> void:
 	for i in range(8):
 		await process_frame
 	_save_frame("obstacles_special.png")
+	game._clear_run_objects()
+	game._spawn_obstacle("rival", 1, -2.4)
+	var rival_item: Dictionary = game.obstacles[-1]
+	game.elapsed = 0.0
+	rival_item.phase = PI * 0.5
+	game._animate_rival_runner(rival_item, 18.0)
+	for i in range(4):
+		await process_frame
+	_save_frame("rival_stride_forward.png")
+	rival_item.phase = PI * 1.5
+	game._animate_rival_runner(rival_item, 18.0)
+	for i in range(4):
+		await process_frame
+	_save_frame("rival_stride_recovery.png")
+	game._clear_run_objects()
 	game.player.visible = true
 	game._spawn_puff(Vector3(0.0, 2.3, -0.3), Color("#fff0cf"), 24)
 	for i in range(16):

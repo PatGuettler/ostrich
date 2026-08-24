@@ -16,6 +16,11 @@ const BIOME_DISTANCE := 225.0
 const BIOME_TRANSITION_DURATION := 4.5
 const AD_PREVIEW_HEIGHT := 74.0
 const VISTA_OVERSCAN := 1.38
+const SPAWN_GAP_MIN := 30.0
+const SPAWN_GAP_MAX := 38.0
+const SPAWN_GAP_RAMP_REDUCTION := 4.0
+const DOUBLE_OBSTACLE_DISTANCE := 240.0
+const DOUBLE_OBSTACLE_CHANCE := 0.26
 const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034]
 const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94]
 const PRIVACY_POLICY_URL := "https://patguettler.github.io/privacy-policy.html"
@@ -320,7 +325,7 @@ func _start_run() -> void:
 	combo = 1
 	score = 0
 	speed = 16.0
-	spawn_meter = 10.0
+	spawn_meter = 24.0
 	current_biome = 0
 	last_biome = -1
 	biome_tour = 0
@@ -353,7 +358,7 @@ func _update_run(delta: float) -> void:
 	spawn_meter -= move_speed * delta
 	if spawn_meter <= 0.0:
 		_spawn_pattern()
-		spawn_meter = randf_range(19.0, 25.0) - minf(4.5, distance / 450.0)
+		spawn_meter = _next_spawn_gap()
 	_move_track(delta, move_speed)
 	_move_objects(delta, move_speed)
 	_update_power(delta)
@@ -403,7 +408,7 @@ func _activate_power() -> void:
 
 func _spawn_pattern() -> void:
 	var blocked: Array[int] = []
-	var obstacle_count := 1 if distance < 90.0 else randi_range(1, 2)
+	var obstacle_count := 2 if distance >= DOUBLE_OBSTACLE_DISTANCE and randf() < DOUBLE_OBSTACLE_CHANCE else 1
 	for i in obstacle_count:
 		var lane := randi_range(0, 2)
 		while lane in blocked:
@@ -423,13 +428,18 @@ func _spawn_pattern() -> void:
 		for i in range(4):
 			_spawn_feather(feather_lane, -64.0 - i * 2.5)
 
+func _next_spawn_gap() -> float:
+	var difficulty_reduction := minf(SPAWN_GAP_RAMP_REDUCTION, distance / 600.0)
+	return randf_range(SPAWN_GAP_MIN, SPAWN_GAP_MAX) - difficulty_reduction
+
 func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 	var node := Node3D.new()
 	node.name = "Cute%sObstacle" % kind.capitalize()
 	node.position = Vector3(LANES[lane], 0.0, z)
 	obstacle_root.add_child(node)
+	var rival_parts: Dictionary = {}
 	if kind == "rival":
-		_sprite_3d(node, load(RIVAL_ART_PATH), Vector3(0.0, 2.35, 0.0), 0.00335, "GeneratedRival")
+		rival_parts = _build_rival_runner(node)
 	else:
 		var cell: int = [0, 5].pick_random() if kind == "wall" else OBSTACLE_CELLS.get(kind, 5)
 		var sprite_height: float = {"wall": 1.42, "bar": 2.82, "cone": 1.08, "drone": 2.55, "slip": 0.62}.get(kind, 1.0)
@@ -441,7 +451,141 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 			art.scale = Vector3(1.08, 1.28, 1.0)
 		elif kind == "slip":
 			art.scale.y = 0.46
-	obstacles.append({"node": node, "kind": kind, "lane": lane, "passed": false, "phase": randf() * TAU})
+	var item := {"node": node, "kind": kind, "lane": lane, "passed": false, "phase": randf() * TAU}
+	item.merge(rival_parts)
+	obstacles.append(item)
+
+func _build_rival_runner(parent: Node3D) -> Dictionary:
+	var texture: Texture2D = load(RIVAL_ART_PATH)
+	var visual := Node3D.new()
+	visual.name = "RivalRunningVisual"
+	parent.add_child(visual)
+	var body := _rival_sprite(visual, texture, Vector3(0.0, 2.35, 0.0), "GeneratedRivalBody", 4)
+	body.material_override = _rival_body_material(texture)
+	var left_pivot := _make_rival_stride_layer(visual, texture, "RivalLeftStride", true, Vector3(-0.25, 1.99, -0.02))
+	var right_pivot := _make_rival_stride_layer(visual, texture, "RivalRightStride", false, Vector3(0.23, 1.99, -0.02))
+	var shadow_mesh := QuadMesh.new()
+	shadow_mesh.size = Vector2(1.9, 0.9)
+	var shadow_material := StandardMaterial3D.new()
+	shadow_material.albedo_color = Color(0.015, 0.025, 0.05, 0.25)
+	shadow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var shadow := MeshInstance3D.new()
+	shadow.name = "RivalGroundShadow"
+	shadow.mesh = shadow_mesh
+	shadow.material_override = shadow_material
+	shadow.position = Vector3(0.0, 0.055, 0.12)
+	shadow.rotation_degrees.x = -90.0
+	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(shadow)
+	return {
+		"rival_visual": visual,
+		"rival_body": body,
+		"rival_left_pivot": left_pivot,
+		"rival_right_pivot": right_pivot,
+		"rival_left_leg": left_pivot.get_node("LegArt"),
+		"rival_right_leg": right_pivot.get_node("LegArt"),
+		"rival_shadow": shadow,
+	}
+
+func _rival_sprite(parent: Node3D, texture: Texture2D, pos: Vector3, node_name: String, priority: int) -> Sprite3D:
+	var sprite := Sprite3D.new()
+	sprite.name = node_name
+	sprite.texture = texture
+	sprite.position = pos
+	sprite.pixel_size = 0.00335
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	sprite.shaded = false
+	sprite.double_sided = true
+	sprite.render_priority = priority
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(sprite)
+	return sprite
+
+func _make_rival_stride_layer(visual: Node3D, texture: Texture2D, node_name: String, keep_left: bool, hip_position: Vector3) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = node_name
+	pivot.position = hip_position
+	visual.add_child(pivot)
+	var leg := _rival_sprite(pivot, texture, Vector3(-hip_position.x, 2.35 - hip_position.y, -0.01), "LegArt", 2)
+	leg.material_override = _rival_leg_material(texture, keep_left)
+	return pivot
+
+func _rival_body_material(texture: Texture2D) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_prepass_alpha;
+uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+void fragment() {
+	vec4 art = texture(runner_texture, UV);
+	float upper_body = 1.0 - step(0.615, UV.y);
+	ALBEDO = art.rgb;
+	ALPHA = art.a * upper_body;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("runner_texture", texture)
+	return material
+
+func _rival_leg_material(texture: Texture2D, keep_left: bool) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_prepass_alpha;
+uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform float keep_left = 1.0;
+void fragment() {
+	vec2 sample_uv = UV;
+	if (keep_left < 0.5) {
+		sample_uv.x = 1.0 - UV.x;
+	}
+	vec4 art = texture(runner_texture, sample_uv);
+	float below_hip = step(0.55, UV.y);
+	float left_half = 1.0 - step(0.505, UV.x);
+	float right_half = step(0.495, UV.x);
+	float selected_half = mix(right_half, left_half, keep_left);
+	ALBEDO = art.rgb;
+	ALPHA = art.a * below_hip * selected_half;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("runner_texture", texture)
+	material.set_shader_parameter("keep_left", 1.0 if keep_left else 0.0)
+	return material
+
+func _animate_rival_runner(item: Dictionary, move_speed: float) -> void:
+	var visual: Node3D = item.rival_visual
+	var body: Sprite3D = item.rival_body
+	var left_pivot: Node3D = item.rival_left_pivot
+	var right_pivot: Node3D = item.rival_right_pivot
+	var left_leg: Sprite3D = item.rival_left_leg
+	var right_leg: Sprite3D = item.rival_right_leg
+	var pace: float = elapsed * lerpf(9.5, 13.0, clampf(move_speed / 31.0, 0.0, 1.0)) + float(item.phase)
+	var drive := sin(pace) * 0.7
+	var bounce := absf(sin(pace)) * 0.11
+	visual.position.y = bounce
+	visual.rotation.z = sin(pace) * 0.018
+	body.scale = Vector3(1.0 + bounce * 0.08, 1.0 - bounce * 0.05, 1.0)
+	_animate_rival_stride(left_pivot, left_leg, drive, true)
+	_animate_rival_stride(right_pivot, right_leg, -drive, false)
+	var shadow: MeshInstance3D = item.rival_shadow
+	shadow.scale = Vector3(1.0 - bounce * 0.5, 1.0 - bounce * 0.5, 1.0)
+
+func _animate_rival_stride(pivot: Node3D, leg: Sprite3D, drive: float, is_left: bool) -> void:
+	var recovery := maxf(drive, 0.0)
+	var extension := maxf(-drive, 0.0)
+	pivot.rotation.x = drive * 0.92
+	pivot.rotation.z = drive * (0.05 if is_left else -0.05)
+	pivot.scale.y = 0.86 + extension * 0.25 - recovery * 0.12
+	pivot.scale.x = 1.0 + extension * 0.05
+	pivot.position.y = 1.99 + recovery * 0.15
+	pivot.position.z = -0.02 + drive * 0.22
+	leg.render_priority = 3 if drive > 0.0 else 2
 
 func _spawn_feather(lane: int, z: float) -> void:
 	var node := Node3D.new()
@@ -457,9 +601,11 @@ func _move_objects(delta: float, move_speed: float) -> void:
 		if not is_instance_valid(node):
 			obstacles.erase(item)
 			continue
-		node.position.z += move_speed * delta
+		var approach_speed := move_speed * (0.84 if item.kind == "rival" else 1.0)
+		node.position.z += approach_speed * delta
 		if item.kind == "rival":
-			node.position.x = LANES[item.lane] + sin(elapsed * 2.7 + item.phase) * 0.5
+			node.position.x = LANES[item.lane] + sin(elapsed * 2.35 + item.phase) * 0.38
+			_animate_rival_runner(item, move_speed)
 		if node.position.z > -1.15 and not item.passed:
 			item.passed = true
 			if absf(node.position.x - player.position.x) < 1.05:

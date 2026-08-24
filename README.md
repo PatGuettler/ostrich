@@ -25,7 +25,7 @@ Controls:
 
 - 3-lane endless running with a smooth speed ramp
 - Alternating hip-pivoted running legs with planted-shoe extension and recovery lift, plus jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
-- Hurdles, walls, cones, drones, slippery patches, and rival runners
+- More breathable hazard spacing with occasional late-run two-lane patterns, plus hurdles, walls, cones, drones, slippery patches, and independently animated rival runners
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art
 - Background changes every 225 meters through a coordinated 4.5-second vista, lighting, fog, track-material, and prop transition; non-stadium biomes are reshuffled for every complete tour with no consecutive repeats

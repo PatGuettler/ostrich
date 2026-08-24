@@ -36,7 +36,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | Midnight skin | Primitive recolor | Matching rear-view midnight-purple runner sprite |
 | Golden skin | Primitive recolor | Matching rear-view sunshine-gold runner sprite |
 | Bubblegum skin | Primitive recolor | Matching rear-view candy-pink runner sprite |
-| Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich sprite |
+| Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich split into a body, two independently animated stride layers, and a planted shadow |
 | Run motion | Primitive leg/wing swing | Two independently masked high-detail leg/shoe layers pivot from the hips with alternating extension, recovery lift, depth, body bob, lean, and shadow |
 | Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
 | Trip/gate flip/spin | Whole primitive rig rotation | Forward stumble for low hits, one neck-pivot revolution over gates, and a separate airborne spin using finished character art |
