@@ -169,4 +169,4 @@ jobs:
           packageName: ${{ env.RELEASE_PACKAGE_NAME }}
           releaseFiles: builds/android/OstrichDash.aab
           tracks: alpha
-          status: completed
+          status: draft

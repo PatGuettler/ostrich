@@ -19,9 +19,7 @@ Google Play package names cannot be changed after the app is created. Confirm th
 5. signs and exports `builds/android/OstrichDash.aab`;
 6. validates the AAB package, version, and signature;
 7. runs the gameplay smoke test; and
-8. uploads the verified bundle to Google Play's closed testing track (`alpha`).
-
-It does not promote the release to closed, open, or production tracks.
+8. uploads the verified bundle to Google Play closed testing (`alpha`) as a **draft**. Play rejects `completed` closed-testing releases while the app itself is still a draft (internal testing is the exception). Finish countries, testers, and Dashboard forms, then roll the draft out in Console.
 
 ## GitHub Actions secrets
 
