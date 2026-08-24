@@ -19,7 +19,7 @@ Google Play package names cannot be changed after the app is created. Confirm th
 5. signs and exports `builds/android/OstrichDash.aab`;
 6. validates the AAB package, version, and signature;
 7. runs the gameplay smoke test; and
-8. uploads the verified bundle to Google Play's `internal` track.
+8. uploads the verified bundle to Google Play's closed testing track (`alpha`).
 
 It does not promote the release to closed, open, or production tracks.
 
@@ -55,7 +55,7 @@ Recorded production IDs (not served while testing):
 1. Create Ostrich Dash in Play Console with package `com.grapegames.ostrichdash`.
 2. Enable the Google Play Developer API for the Google Cloud project that owns the service account.
 3. Invite that service account in Play Console and grant it release access to Ostrich Dash.
-4. Create the internal-testing track, add testers, and complete any Console forms required before a release can be accepted.
+4. Create the closed-testing track, add a tester list or Google Group, choose countries, and complete any Console forms required before a release can be accepted. Pause internal testing once closed testing is live.
 5. Add the shared Grapegames listing URLs:
    - Website: `https://patguettler.github.io`
    - Privacy policy: `https://patguettler.github.io/privacy-policy.html`
