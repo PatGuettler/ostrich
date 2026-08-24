@@ -154,7 +154,10 @@ var success_sound: AudioStreamWAV
 var audio_enabled := true
 
 func _ready() -> void:
-	randomize()
+	if "--store-listing" in OS.get_cmdline_user_args():
+		seed(20260823)
+	else:
+		randomize()
 	mobile_mode = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 	ad_preview_mode = "--preview-ad-bar" in OS.get_cmdline_user_args()
 	_build_game_viewport()
