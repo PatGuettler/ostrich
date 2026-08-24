@@ -11,7 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ostrich-dash-google-play-internal
+  # Keep this name stable if the Play track changes, so deploys cannot overlap.
+  group: ostrich-dash-google-play
   cancel-in-progress: false
 
 env:
