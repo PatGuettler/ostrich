@@ -1,12 +1,17 @@
 extends SceneTree
 
-const OUTPUT_DIR := "user://art_audit"
+const DEFAULT_OUTPUT_DIR := "user://art_audit"
+const STORE_OUTPUT_DIR := "res://store/google-play/source-captures"
+
+var output_dir := DEFAULT_OUTPUT_DIR
 
 func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
+	if "--store-listing" in OS.get_cmdline_user_args():
+		output_dir = STORE_OUTPUT_DIR
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
 	DisplayServer.window_set_size(Vector2i(1280, 720))
 	var error := change_scene_to_file("res://scenes/main.tscn")
 	if error != OK:
@@ -35,6 +40,12 @@ func _run() -> void:
 		for i in range(8):
 			await process_frame
 		_save_frame("biome_%d_%s.png" % [biome_index, game.BIOMES[biome_index].name.to_lower().replace(" ", "_")])
+	if output_dir == STORE_OUTPUT_DIR:
+		game.queue_free()
+		for i in range(6):
+			await process_frame
+		quit()
+		return
 	game._apply_biome(0, true)
 	game._apply_biome(1)
 	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)
@@ -94,7 +105,7 @@ func _run() -> void:
 func _save_frame(filename: String) -> void:
 	RenderingServer.force_draw(false, 0.0)
 	var image := root.get_texture().get_image()
-	var path := "%s/%s" % [OUTPUT_DIR, filename]
+	var path := "%s/%s" % [output_dir, filename]
 	var error := image.save_png(path)
 	if error != OK:
 		push_error("Could not save %s: %s" % [path, error_string(error)])

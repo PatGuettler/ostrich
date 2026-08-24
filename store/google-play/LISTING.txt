@@ -5,16 +5,18 @@ App name
 Ostrich Dash
 
 Short description (80 characters max)
-Race an ostrich through six biomes. Jump, duck, swipe. Free, with ads.
+Swipe, jump, and duck through six changing biomes in an ostrich runner.
 
 Full description
-Ostrich Dash is a three-lane endless runner. You race an ostrich away down the track, switching lanes, jumping, and ducking as the world shifts through Classic Stadium, Beach, Night, Desert, Snow, and Jungle.
+Ostrich Dash is a colorful third-person, three-lane endless runner. Guide an ostrich down an ever-changing track as the scenery moves through Classic Stadium, Beach Track, Night Games, Desert Circuit, Snow Games, and Jungle Track.
 
-Dodge hurdles, walls, cones, drones, slick patches, and rival runners. Charge Shield, Magnet, Slow-Mo, and Score Rush. Earn feathers, unlock skins, and collect biome medals.
+Swipe left or right to switch lanes, swipe up to jump, and swipe down to duck. Dodge padded hurdles, foam walls, traffic cones, duck-under gates, referee drones, slippery patches, and rival runners.
 
-On a phone, swipe sideways to change lanes, swipe up to jump, and swipe down to duck. On a keyboard, use A/D or the arrow keys to change lanes, W or Space to jump, and S to duck.
+Collect feathers during each run to unlock four ostrich skins. Build clean-dodge combos, earn biome medals, complete a daily feather challenge, and improve your personal best.
 
-Free to play. Contains ads.
+Charge one of four powers as you run: Shield blocks one collision, Magnet pulls nearby feathers toward you, Slow-Mo gives you extra reaction time, and Score Rush builds your combo faster.
+
+On a keyboard, use the arrow keys or A/D to switch lanes, W or Space to jump, S to duck, and E or Q to activate a charged power.
 
 Privacy policy
 https://patguettler.github.io/privacy-policy.html
@@ -31,6 +33,10 @@ Leave blank. Optional later: a public or unlisted YouTube URL with ads off and n
 Upload map
 - App icon:        icon/app_icon_512.png
 - Feature graphic: feature-graphic/feature_graphic_1024x500.png
-- Phone:           phone/*.png
-- 7-inch tablet:   tablet-7/*.png
-- 10-inch tablet:  tablet-10/*.png
+- Phone:           phone/*_gameplay_phone_16x9.png
+- 7-inch tablet:   tablet-7/*_gameplay_tablet7_16x9.png
+- 10-inch tablet:  tablet-10/*_gameplay_tablet10_16x9.png
+
+Resubmission requirement
+Delete every previously uploaded screenshot before uploading these replacements.
+The source-captures folder is build input only; do not upload it separately.

@@ -51,6 +51,15 @@ godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_captu
 
 Captures are written outside the project package to `user://art_audit/`. The complete object list and generation provenance are in [`docs/ART_INVENTORY.md`](docs/ART_INVENTORY.md) and [`assets/generated/gameplay/GENERATION_NOTES.md`](assets/generated/gameplay/GENERATION_NOTES.md).
 
+Rebuild the Google Play screenshot galleries from direct in-game captures with:
+
+```bash
+godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_capture.gd -- --store-listing
+python3 scripts/build_play_store_assets.py
+```
+
+This store mode captures only real gameplay frames; it does not create marketing composites or add text overlays.
+
 Save data is stored by Godot at `user://ostrich_dash_save.cfg`.
 
 ## Mobile ad bar

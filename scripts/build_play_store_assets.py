@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
-"""Build Google Play Console listing images from Ostrich Dash game art."""
+"""Build Google Play Console listing assets from genuine in-game captures.
+
+The feature graphic and icon are promotional art. Every file placed in a
+screenshot directory is an uncomposited frame captured from the running game.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
 ART = ROOT / "assets" / "generated"
 OUT = ROOT / "store" / "google-play"
+CAPTURES = OUT / "source-captures"
 
-VISTAS = [
-    ("01_classic_stadium", ART / "classic_stadium_vista.png"),
-    ("02_beach", ART / "beach_track_vista.png"),
-    ("03_night", ART / "night_games_vista.png"),
-    ("04_desert", ART / "desert_circuit_vista.png"),
-    ("05_snow", ART / "snow_games_vista.png"),
-    ("06_jungle", ART / "jungle_track_vista.png"),
+GAMEPLAY_CAPTURES = [
+    ("01_classic_stadium_gameplay", CAPTURES / "biome_0_classic_stadium.png"),
+    ("02_beach_track_gameplay", CAPTURES / "biome_1_beach_track.png"),
+    ("03_night_games_gameplay", CAPTURES / "biome_2_night_games.png"),
+    ("04_desert_circuit_gameplay", CAPTURES / "biome_3_desert_circuit.png"),
+    ("05_snow_games_gameplay", CAPTURES / "biome_4_snow_games.png"),
+    ("06_jungle_track_gameplay", CAPTURES / "biome_5_jungle_track.png"),
 ]
-RUNNER = ART / "gameplay" / "runner_classic_back.png"
 ICON = ART / "ostrich_dash_icon.png"
 KEY_ART = ART / "ostrich_dash_key_art.png"
 
@@ -34,25 +38,18 @@ def cover(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return ImageOps.fit(image.convert("RGB"), size, method=Image.Resampling.LANCZOS)
 
 
-def contain_bottom(canvas: Image.Image, sprite: Image.Image, max_h: int, y: int) -> None:
-    ratio = max_h / sprite.height
-    w = int(sprite.width * ratio)
-    h = int(sprite.height * ratio)
-    resized = sprite.resize((w, h), Image.Resampling.LANCZOS)
-    x = (canvas.width - w) // 2
-    canvas.paste(resized, (x, y), resized)
+def validate_gameplay_capture(image: Image.Image, path: Path) -> None:
+    width, height = image.size
+    if width < 320 or height < 320 or width > 3840 or height > 3840:
+        raise ValueError(f"{path} is outside Google Play's 320-3840 px limits: {image.size}")
+    if width * 9 != height * 16:
+        raise ValueError(f"{path} must be an uncropped 16:9 game capture, got {image.size}")
 
 
-def portrait_phone(vista: Image.Image, runner: Image.Image, size: tuple[int, int]) -> Image.Image:
-    w, h = size
-    cover_bg = ImageOps.fit(vista, (w, h), method=Image.Resampling.LANCZOS).filter(
-        ImageFilter.GaussianBlur(28)
-    )
-    canvas = cover_bg.convert("RGBA")
-    plate = ImageOps.fit(vista, (w, int(h * 0.58)), method=Image.Resampling.LANCZOS).convert("RGBA")
-    canvas.paste(plate, (0, int(h * 0.08)))
-    contain_bottom(canvas, runner, int(h * 0.42), int(h * 0.54))
-    return canvas.convert("RGB")
+def clear_old_screenshots(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for path in directory.glob("*.png"):
+        path.unlink()
 
 
 def main() -> None:
@@ -62,22 +59,30 @@ def main() -> None:
     key = Image.open(KEY_ART)
     save_png(cover(key, (1024, 500)), OUT / "feature-graphic" / "feature_graphic_1024x500.png")
 
-    runner = Image.open(RUNNER).convert("RGBA")
     phone_dir = OUT / "phone"
     tab7 = OUT / "tablet-7"
     tab10 = OUT / "tablet-10"
 
-    for index, (stem, path) in enumerate(VISTAS):
-        vista = Image.open(path)
-        if index < 4:
-            save_png(portrait_phone(vista, runner, (1080, 1920)), phone_dir / f"{stem}_phone_9x16.png")
-        if index in (0, 2):
-            save_png(cover(vista, (1920, 1080)), phone_dir / f"{stem}_phone_16x9.png")
-        if index < 4:
-            save_png(cover(vista, (1920, 1080)), tab7 / f"{stem}_tablet7_16x9.png")
-            save_png(cover(vista, (1920, 1080)), tab10 / f"{stem}_tablet10_16x9.png")
+    for directory in (phone_dir, tab7, tab10):
+        clear_old_screenshots(directory)
 
-    print(f"Wrote Play listing assets under {OUT}")
+    for stem, path in GAMEPLAY_CAPTURES:
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing {path}. Run tests/art_capture.gd with --store-listing first."
+            )
+        with Image.open(path) as capture:
+            validate_gameplay_capture(capture, path)
+            # Do not crop, blur, add copy, or composite promotional artwork here.
+            # Google Play screenshots must show the actual in-app experience.
+            for directory, suffix in (
+                (phone_dir, "phone"),
+                (tab7, "tablet7"),
+                (tab10, "tablet10"),
+            ):
+                save_png(capture, directory / f"{stem}_{suffix}_16x9.png")
+
+    print(f"Wrote six genuine gameplay screenshots per device class under {OUT}")
 
 
 if __name__ == "__main__":
