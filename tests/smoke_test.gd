@@ -54,6 +54,9 @@ func _run() -> void:
 		game.BIOME_PROP_ATLAS_PATH,
 		game.EFFECTS_MEDALS_ATLAS_PATH,
 		game.SURFACE_ATLAS_PATH,
+		game.MENU_LOGO_PATH,
+		game.UI_FONT_PATH,
+		game.UI_FONT_BOLD_PATH,
 	])
 	required_art.append_array(game.SURFACE_PATHS)
 	for art_path in required_art:
@@ -67,6 +70,22 @@ func _run() -> void:
 			push_error("Gameplay surface is not using the high-detail production asset: %s" % surface_path)
 			quit(1)
 			return
+	var logo_texture := load(game.MENU_LOGO_PATH) as Texture2D
+	var logo_image := logo_texture.get_image() if logo_texture != null else null
+	if logo_image == null or logo_image.is_empty() or logo_image.detect_alpha() == Image.ALPHA_NONE:
+		push_error("The startup-menu logo is missing its transparent background")
+		quit(1)
+		return
+	if (
+		not is_instance_valid(game.menu_logo)
+		or game.menu_logo.texture == null
+		or game.menu_logo.texture.resource_path != game.MENU_LOGO_PATH
+		or game.start_button.text != "PLAY NOW"
+		or game.start_button.get_theme_font("font") == null
+	):
+		push_error("The modern startup-menu logo, CTA, or bundled display font is not active")
+		quit(1)
+		return
 	if not is_instance_valid(game.player.character_sprite) or game.player.character_sprite.texture == null:
 		push_error("Generated runner art is not active")
 		quit(1)

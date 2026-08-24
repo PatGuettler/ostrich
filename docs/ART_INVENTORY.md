@@ -19,6 +19,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | --- | --- | --- |
 | `ostrich_dash_key_art.png` | Home screen | Keep; master style reference |
 | `ostrich_dash_icon.png` | App/launcher icon | Keep; face and character reference |
+| `ui/ostrich_dash_menu_logo.png` | Startup title crest | Keep; transparent, phone-readable generated branding |
 | `classic_stadium_vista.png` | Classic backdrop | Keep |
 | `classic_stadium_crowd.png` | Former side-grandstand layer | Retain as source art but do not render; the complete vista already contains the crowd |
 | `beach_track_vista.png` | Beach backdrop | Keep |
@@ -89,7 +90,8 @@ This is the production checklist for bringing every visible gameplay element up 
 | Power button | Text-only button | Matching power icon plus text/state |
 | Skin shop cards | Solid color swatches | Actual character skin portraits |
 | Biome medals | Single text line | Bronze/silver/gold badge art and clearer cards |
-| Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents |
+| Startup menu | Basic text title and generic stacked controls | Generated dimensional title crest, bundled Noto Sans Display type, bold CTA hierarchy, stat/loadout chips, and responsive glass card |
+| Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents, bold embedded display font |
 | Touch controls | Arrow text | Mobile remains swipe-only; desktop controls stay unobtrusive |
 | Results/pause/toast | Flat modal panels | Same polished panel language with small character/reward art accents |
 

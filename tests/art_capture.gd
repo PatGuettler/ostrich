@@ -24,6 +24,7 @@ func _run() -> void:
 	var game = current_scene
 	game.audio_enabled = false
 	root.get_node("GameManager").save_enabled = false
+	_save_frame("menu_landscape.png")
 	game.mobile_mode = false
 	game._start_run()
 	game.state = game.GameState.PAUSED
@@ -66,10 +67,13 @@ func _run() -> void:
 		await process_frame
 	game.refresh_ad_layout()
 	_save_frame("portrait_gameplay.png")
+	game.mobile_mode = true
 	game._show_menu()
+	game.refresh_ad_layout()
 	for i in range(4):
 		await process_frame
 	_save_frame("portrait_menu.png")
+	game.mobile_mode = false
 	game._show_shop()
 	for i in range(4):
 		await process_frame

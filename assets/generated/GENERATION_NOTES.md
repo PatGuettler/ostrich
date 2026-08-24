@@ -35,6 +35,20 @@ Color palette: cobalt, teal, coral, cream, sunflower yellow
 Constraints: no text, no letters, no logos, no Olympic rings, no watermark, no real brands, one character only
 ```
 
+## `ui/ostrich_dash_menu_logo.png`
+
+Created with Codex's built-in image-generation tool on 2026-08-24 using `ostrich_dash_key_art.png` as a style and palette reference. The generated crest was exported as a clean transparent cutout before integration.
+
+```text
+Use case: logo-brand
+Asset type: transparent title logo for the Ostrich Dash mobile game startup menu
+Input image: visual-style and color-palette reference only; do not reproduce or edit the full scene
+Primary request: Create a unique, premium, playful title crest with the exact words "OSTRICH DASH" on two lines. Make the lettering extremely readable at phone size, with chunky rounded athletic letterforms, dimensional cream faces, deep navy extrusion, coral-orange highlights, and a teal outer rim. Add only subtle original race-themed decoration: two small cream feathers and a curved track swoosh beneath the title.
+Composition: centered compact horizontal crest, balanced silhouette, generous padding around all edges
+Text (verbatim): "OSTRICH DASH"
+Constraints: genuinely transparent background; title must be correctly spelled; strong contrast; no character; no rectangular panel; no tiny text; no other words; no app icon; no watermark
+```
+
 ## `classic_stadium_vista.png`
 
 ```text
