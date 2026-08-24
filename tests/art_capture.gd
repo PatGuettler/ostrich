@@ -47,6 +47,16 @@ func _run() -> void:
 			await process_frame
 		quit()
 		return
+	game.player.run_clock = PI / 24.0
+	game.player._animate_run()
+	for i in range(4):
+		await process_frame
+	_save_frame("run_stride_left.png")
+	game.player.run_clock += PI / 12.0
+	game.player._animate_run()
+	for i in range(4):
+		await process_frame
+	_save_frame("run_stride_right.png")
 	game._apply_biome(0, true)
 	game._apply_biome(1)
 	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)

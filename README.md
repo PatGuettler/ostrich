@@ -23,7 +23,7 @@ Controls:
 ## Included systems
 
 - 3-lane endless running with a smooth speed ramp
-- Jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
+- Alternating hip-pivoted running legs with planted-shoe extension and recovery lift, plus jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
 - Hurdles, walls, cones, drones, slippery patches, and rival runners
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art

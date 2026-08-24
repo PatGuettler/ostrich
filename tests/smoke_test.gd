@@ -46,6 +46,7 @@ func _run() -> void:
 	var required_art: Array[String] = []
 	required_art.append_array(game.RUNNER_ART_PATHS)
 	required_art.append_array(game.RUNNER_GAMEPLAY_ART_PATHS)
+	required_art.append_array(game.player.BODY_TEXTURE_PATHS)
 	required_art.append_array([
 		game.RIVAL_ART_PATH,
 		game.OBSTACLE_ATLAS_PATH,
@@ -74,6 +75,27 @@ func _run() -> void:
 		push_error("Gameplay runner is not using a rear-facing follow-camera plate")
 		quit(1)
 		return
+	if (
+		not game.player.character_sprite.texture.resource_path.ends_with("_body_back.png")
+		or not is_instance_valid(game.player.left_leg_sprite)
+		or not is_instance_valid(game.player.right_leg_sprite)
+	):
+		push_error("Gameplay runner is missing its independently animated leg layers")
+		quit(1)
+		return
+	for skin_index in range(game.player.BODY_TEXTURE_PATHS.size()):
+		game.player.apply_skin(skin_index)
+		var expected_body: String = game.player.BODY_TEXTURE_PATHS[skin_index]
+		var expected_legs: String = game.player.SKIN_TEXTURE_PATHS[skin_index]
+		var left_leg_texture: Texture2D = (game.player.left_leg_sprite.material_override as ShaderMaterial).get_shader_parameter("leg_texture")
+		if (
+			game.player.character_sprite.texture.resource_path != expected_body
+			or left_leg_texture.resource_path != expected_legs
+		):
+			push_error("Runner skin did not update both its body and animated leg layers")
+			quit(1)
+			return
+	game.player.apply_skin(0)
 	for mesh in game.player.visual.find_children("*", "MeshInstance3D", true, false):
 		if (mesh as MeshInstance3D).visible:
 			push_error("Procedural player geometry is still visible")
@@ -228,6 +250,22 @@ func _run() -> void:
 	game._start_run()
 	if game.touch_controls.visible or game.touch_controls.get_child_count() != 0:
 		push_error("Desktop mode displayed on-screen arrow controls")
+		quit(1)
+		return
+	game.player.run_clock = PI / 24.0
+	game.player._animate_run()
+	var left_stride_a: float = game.player.left_stride_pivot.rotation.x
+	var right_stride_a: float = game.player.right_stride_pivot.rotation.x
+	game.player.run_clock += PI / 12.0
+	game.player._animate_run()
+	if (
+		left_stride_a * game.player.left_stride_pivot.rotation.x >= 0.0
+		or right_stride_a * game.player.right_stride_pivot.rotation.x >= 0.0
+		or left_stride_a * right_stride_a >= 0.0
+		or absf(left_stride_a) < 0.45
+		or absf(right_stride_a) < 0.45
+	):
+		push_error("Runner leg layers did not alternate through a readable stride")
 		quit(1)
 		return
 	game._clear_run_objects()

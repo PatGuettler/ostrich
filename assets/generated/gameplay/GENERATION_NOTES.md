@@ -20,8 +20,11 @@ Front-facing plates are reserved for the menu and skin shop. Gameplay deliberate
 - `runner_golden_back.png`: rear-view Golden runner with amber/chocolate plumage and sunshine-gold gear.
 - `runner_bubblegum_back.png`: rear-view Bubblegum runner with cream/pink plumage and candy-pink gear.
 - `rival_runner_back.png`: rear-view pink-and-coral rival, oriented in the same down-track direction.
+- `runner_*_body_back.png`: four rear-view, legless production body layers. These sit in front of two independently masked leg copies so the original detailed legs and shoes can alternate through a real-time stride without double images.
 
 Rear-view generation prompt family: isolated full-body premium animated-film 3D ostrich runner, viewed directly from behind and slightly above as if followed by a game camera, centered mid-stride running away, transparent background, readable feather fan and legs, no face/front view, text, logo, scenery, track, shadow, or duplicate character. Each skin retained its established palette and accessories. The built-in image-generation workflow produced one image per skin; edge-connected neutral checker pixels were then mechanically converted to true alpha with `scripts/ci/remove_checker_alpha.gd`.
+
+Legless body edit prompt family: remove only both legs and running shoes from the matching rear-view skin; naturally complete the underside with matching feathers; preserve the exact rear view, scale, centered framing, head, neck, visor, body, and tail fan; transparent background; no shadow, text, watermark, or added object. The image tool's RGB previews baked their neutral checker, so only the edited feather underside was retained: the untouched upper character uses the original RGBA pixels, while the lower edit received a saturation/darkness alpha reconstruction and a hard transparent safety cutoff below the body. All four final layers were visually inspected and validated as 1024×1536 RGBA.
 
 ## Atlas prompts and fixed cell maps
 
@@ -100,5 +103,5 @@ Every transparent runtime asset is validated with `scripts/ci/check_image_alpha.
 - Rear-facing runner plates are used on the track; front-facing runner plates remain in the skin shop.
 - Classic Stadium uses only its single complete vista at runtime. The former crowd/roof/rail layering and duplicated foreground plates are intentionally disabled.
 - Hidden procedural player geometry remains only as an animation/collision rig.
-- `tests/art_capture.gd` deterministically captures all six biomes, both obstacle groups, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
-- `tests/smoke_test.gd` asserts required art exists, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.
+- `tests/art_capture.gd` deterministically captures all six biomes, both opposite run-stride extremes, both obstacle groups, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
+- `tests/smoke_test.gd` asserts required art exists, both detailed leg layers alternate direction with readable amplitude, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.

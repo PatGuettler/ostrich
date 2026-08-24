@@ -36,7 +36,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | Golden skin | Primitive recolor | Matching rear-view sunshine-gold runner sprite |
 | Bubblegum skin | Primitive recolor | Matching rear-view candy-pink runner sprite |
 | Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich sprite |
-| Run motion | Primitive leg/wing swing | Sprite squash, bob, lean, footstep rhythm, shadow |
+| Run motion | Primitive leg/wing swing | Two independently masked high-detail leg/shoe layers pivot from the hips with alternating extension, recovery lift, depth, body bob, lean, and shadow |
 | Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
 | Trip/gate flip/spin | Whole primitive rig rotation | Forward stumble for low hits, one neck-pivot revolution over gates, and a separate airborne spin using finished character art |
 
@@ -107,11 +107,15 @@ The integration uses a small number of high-resolution transparent plates and at
 8. `runner_golden_back.png`
 9. `runner_bubblegum_back.png`
 10. `rival_runner_back.png`
-11. `obstacle_atlas.png` — 3×2 cells
-12. `reward_power_atlas.png` — 3×2 cells
-13. `biome_prop_atlas.png` — 3×2 cells
-14. `effects_medals_atlas.png` — 3×2 cells
-15. `surface_atlas.png` — 3×2 cells
+11. `runner_classic_body_back.png`
+12. `runner_midnight_body_back.png`
+13. `runner_golden_body_back.png`
+14. `runner_bubblegum_body_back.png`
+15. `obstacle_atlas.png` — 3×2 cells
+16. `reward_power_atlas.png` — 3×2 cells
+17. `biome_prop_atlas.png` — 3×2 cells
+18. `effects_medals_atlas.png` — 3×2 cells
+19. `surface_atlas.png` — 3×2 cells
 
 The six surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses the separately generated 1254×1254 production materials in `gameplay/surfaces/hd/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 
