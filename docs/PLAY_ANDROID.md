@@ -19,7 +19,7 @@ Google Play package names cannot be changed after the app is created. Confirm th
 5. signs and exports `builds/android/OstrichDash.aab`;
 6. validates the AAB package, version, and signature;
 7. runs the gameplay smoke test; and
-8. uploads the verified bundle to Google Play closed testing (`alpha`) as a **draft**. Play rejects `completed` closed-testing releases while the app itself is still a draft (internal testing is the exception). Finish countries, testers, and Dashboard forms, then roll the draft out in Console.
+8. uploads the verified bundle to Google Play's `internal` track with status completed, matching Peregrine. Closed testing cannot be auto-completed while the Play app is still a draft.
 
 ## GitHub Actions secrets
 
@@ -53,7 +53,7 @@ Recorded production IDs (not served while testing):
 1. Create Ostrich Dash in Play Console with package `com.grapegames.ostrichdash`.
 2. Enable the Google Play Developer API for the Google Cloud project that owns the service account.
 3. Invite that service account in Play Console and grant it release access to Ostrich Dash.
-4. Create the closed-testing track, add a tester list or Google Group, choose countries, and complete any Console forms required before a release can be accepted. Pause internal testing once closed testing is live.
+4. Keep the internal-testing track (this is how Peregrine ships). Add testers and complete any Console forms required before a release can be accepted. Do not point CI at closed testing until the Play app is no longer a draft.
 5. Add the shared Grapegames listing URLs:
    - Website: `https://patguettler.github.io`
    - Privacy policy: `https://patguettler.github.io/privacy-policy.html`

@@ -76,6 +76,6 @@ Release and data-practice notes are in [`docs/PRIVACY_AND_RELEASE.md`](docs/PRIV
 
 ## Google Play CI
 
-The project includes a signed Android App Bundle pipeline. Pushes to `main` or `master` build, validate, smoke-test, and upload `com.grapegames.ostrichdash` to Google Play closed testing after the repository secrets and Play Console app are configured.
+The project includes a signed Android App Bundle pipeline matching Peregrine. Pushes to `main` or `master` build, validate, smoke-test, and upload `com.grapegames.ostrichdash` to Google Play internal testing after the repository secrets and Play Console app are configured.
 
 See [`docs/PLAY_ANDROID.md`](docs/PLAY_ANDROID.md) for the immutable package-name decision, required secrets, Play service-account permissions, and local export instructions.

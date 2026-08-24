@@ -1,4 +1,4 @@
-name: Deploy Ostrich Dash to Google Play Closed Testing
+name: Deploy Ostrich Dash to Google Play Internal
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ostrich-dash-google-play-closed
+  group: ostrich-dash-google-play-internal
   cancel-in-progress: false
 
 env:
@@ -162,11 +162,11 @@ jobs:
       - name: Run gameplay smoke test
         run: $HOME/.local/bin/godot --headless --fixed-fps 60 --path . --script res://tests/smoke_test.gd
 
-      - name: Upload to Google Play closed testing
+      - name: Upload to Play Store Internal track
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.RELEASE_PACKAGE_NAME }}
           releaseFiles: builds/android/OstrichDash.aab
-          tracks: alpha
-          status: draft
+          tracks: internal
+          status: completed
