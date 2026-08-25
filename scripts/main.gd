@@ -14,6 +14,8 @@ const BIOMES := [
 const LANES := [-2.8, 0.0, 2.8]
 const BIOME_DISTANCE := 225.0
 const BIOME_TRANSITION_DURATION := 4.5
+const CHECKPOINT_REWARD := 5
+const TOUR_REWARD := 25
 const AD_PREVIEW_HEIGHT := 74.0
 const VISTA_OVERSCAN := 1.38
 const SPAWN_GAP_MIN := 30.0
@@ -95,6 +97,7 @@ var current_biome := 0
 var last_biome := -1
 var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5]
 var biome_tour := 0
+var checkpoint_stage := 0
 var biome_transition_active := false
 var biome_transition_elapsed := 0.0
 var biome_transition_from := 0
@@ -146,11 +149,16 @@ var start_button: Button
 var shop_button: Button
 var hud: Control
 var hud_top_panel: PanelContainer
+var hud_margin: MarginContainer
+var hud_box: VBoxContainer
 var hud_stats: GridContainer
 var distance_label: Label
 var feather_label: Label
 var combo_label: Label
 var biome_label: Label
+var goal_label: Label
+var goal_detail_label: Label
+var goal_progress: ProgressBar
 var power_button: Button
 var power_bar: ProgressBar
 var touch_controls: Control
@@ -163,10 +171,14 @@ var result_stats: Label
 var result_bonus: Label
 var shop_layer: Control
 var shop_panel: PanelContainer
+var shop_margin: MarginContainer
+var shop_box: VBoxContainer
+var shop_heading: Label
 var shop_wallet: Label
 var shop_cards: GridContainer
 var shop_medal_row: HBoxContainer
 var shop_medals: Label
+var shop_back: Button
 var pause_layer: Control
 var pause_panel: PanelContainer
 var toast_label: Label
@@ -214,6 +226,12 @@ func _process(delta: float) -> void:
 		_update_hit(delta)
 	elif state == GameState.MENU:
 		_move_track(delta, 4.0)
+	if is_instance_valid(power_button) and hud.visible:
+		power_button.pivot_offset = power_button.size * 0.5
+		var ready_pulse := 0.045 if power_charge >= 100.0 else 0.015
+		var pulse := 1.0 + sin(elapsed * 3.2) * ready_pulse
+		power_button.scale = Vector2(pulse, pulse)
+		power_button.rotation = sin(elapsed * 2.1) * 0.018
 	_update_particles(delta)
 
 func _input(event: InputEvent) -> void:
@@ -329,6 +347,7 @@ func _start_run() -> void:
 	current_biome = 0
 	last_biome = -1
 	biome_tour = 0
+	checkpoint_stage = 0
 	_shuffle_biome_sequence()
 	last_crash = "spin"
 	power_charge = 0.0
@@ -371,8 +390,20 @@ func _update_run(delta: float) -> void:
 	if next_biome != current_biome:
 		current_biome = next_biome
 		_apply_biome(current_biome)
+	while checkpoint_stage < biome_stage:
+		checkpoint_stage += 1
+		_award_checkpoint(checkpoint_stage % biome_sequence.size() == 0)
 	_update_biome_transition(delta)
 	_update_hud()
+
+func _award_checkpoint(completed_tour: bool) -> void:
+	var reward := TOUR_REWARD if completed_tour else CHECKPOINT_REWARD
+	run_feathers += reward
+	power_charge = minf(100.0, power_charge + 18.0)
+	if completed_tour:
+		_show_toast("TOUR COMPLETE!  +%d FEATHERS" % reward)
+	else:
+		_show_toast("CHECKPOINT!  +%d FEATHERS" % reward)
 
 func _update_power(delta: float) -> void:
 	if power_timer > 0.0:
@@ -1051,45 +1082,57 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		return
 
 	if portrait_layout:
-		_position_center_panel(menu_panel, Vector2(minf(900.0, content_size.x - 64.0), minf(970.0, content_size.y - 80.0)))
-		menu_margin.add_theme_constant_override("margin_left", 54)
-		menu_margin.add_theme_constant_override("margin_right", 54)
-		menu_margin.add_theme_constant_override("margin_top", 42)
-		menu_margin.add_theme_constant_override("margin_bottom", 46)
-		menu_box.add_theme_constant_override("separation", 20)
-		menu_logo.custom_minimum_size.y = 320.0
-		_set_font_size(menu_tagline, 28)
-		_set_font_size(menu_wallet, 27)
-		_set_font_size(loadout_skin_label, 24)
-		_set_font_size(loadout_power_button, 26)
-		_set_font_size(daily_label, 23)
-		_set_font_size(start_button, 34)
-		_set_font_size(shop_button, 27)
-		_set_font_size(control_help_label, 22)
-		_set_font_size(privacy_button, 21)
-		start_button.custom_minimum_size.y = 104.0
-		shop_button.custom_minimum_size.y = 78.0
-		privacy_button.offset_left = -330.0
-		privacy_button.offset_top = 30.0
-		privacy_button.offset_right = -34.0
-		privacy_button.offset_bottom = 98.0
+		_position_center_panel(menu_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1240.0, content_size.y - 80.0)))
+		menu_margin.add_theme_constant_override("margin_left", 58)
+		menu_margin.add_theme_constant_override("margin_right", 58)
+		menu_margin.add_theme_constant_override("margin_top", 44)
+		menu_margin.add_theme_constant_override("margin_bottom", 42)
+		menu_box.add_theme_constant_override("separation", 16)
+		menu_logo.custom_minimum_size.y = 360.0
+		_set_font_size(menu_tagline, 31)
+		_set_font_size(menu_wallet, 30)
+		_set_font_size(loadout_skin_label, 27)
+		_set_font_size(loadout_power_button, 30)
+		_set_font_size(daily_label, 26)
+		_set_font_size(start_button, 40)
+		_set_font_size(shop_button, 32)
+		_set_font_size(control_help_label, 23)
+		_set_font_size(privacy_button, 20)
+		loadout_power_button.custom_minimum_size.y = 72.0
+		daily_label.custom_minimum_size.y = 60.0
+		start_button.custom_minimum_size.y = 126.0
+		shop_button.custom_minimum_size.y = 92.0
+		control_help_label.custom_minimum_size.y = 48.0
+		privacy_button.custom_minimum_size.y = 48.0
 		_position_center_panel(result_panel, Vector2(minf(540.0, content_size.x - 24.0), minf(560.0, content_size.y - 32.0)))
-		_position_center_panel(shop_panel, Vector2(minf(680.0, content_size.x - 24.0), minf(980.0, content_size.y - 32.0)))
+		_position_center_panel(shop_panel, Vector2(minf(1120.0, content_size.x - 64.0), minf(1640.0, content_size.y - 96.0)))
 		_position_center_panel(pause_panel, Vector2(minf(440.0, content_size.x - 32.0), 340.0))
 		hud_top_panel.offset_left = 18.0
 		hud_top_panel.offset_top = 16.0
 		hud_top_panel.offset_right = -18.0
-		hud_top_panel.offset_bottom = 166.0
-		hud_stats.columns = 2
-		hud_stats.add_theme_constant_override("h_separation", 6)
-		biome_label.custom_minimum_size.x = 150.0
-		power_bar.position = Vector2(22.0, 178.0)
-		power_bar.size = Vector2(minf(276.0, content_size.x * 0.42), 20.0)
-		shop_cards.columns = 2
-		shop_cards.custom_minimum_size.y = 590.0
-		var toast_width := minf(480.0, content_size.x - 32.0)
-		toast_label.position = Vector2(-toast_width * 0.5, 188.0)
-		toast_label.size = Vector2(toast_width, 58.0)
+		hud_top_panel.offset_bottom = 286.0
+		hud_margin.add_theme_constant_override("margin_left", 20)
+		hud_margin.add_theme_constant_override("margin_right", 20)
+		hud_margin.add_theme_constant_override("margin_top", 18)
+		hud_margin.add_theme_constant_override("margin_bottom", 18)
+		hud_box.add_theme_constant_override("separation", 12)
+		hud_stats.columns = 3
+		hud_stats.add_theme_constant_override("h_separation", 12)
+		hud_stats.add_theme_constant_override("v_separation", 0)
+		_style_hud_cards(true)
+		_set_font_size(goal_label, 25)
+		_set_font_size(biome_label, 24)
+		_set_font_size(goal_detail_label, 22)
+		goal_progress.custom_minimum_size.y = 28.0
+		power_button.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		power_button.offset_left = 90.0
+		power_button.offset_top = -820.0
+		power_button.offset_right = 430.0
+		power_button.offset_bottom = -640.0
+		power_button.add_theme_constant_override("icon_max_width", 92)
+		_set_font_size(power_button, 27)
+		_set_font_size(toast_label, 28)
+		_position_top_center(toast_label, minf(700.0, content_size.x - 48.0), 310.0, 90.0)
 	else:
 		menu_panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 		menu_panel.offset_left = 42.0
@@ -1111,28 +1154,42 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(shop_button, 17)
 		_set_font_size(control_help_label, 14)
 		_set_font_size(privacy_button, 14)
+		loadout_power_button.custom_minimum_size.y = 54.0
+		daily_label.custom_minimum_size.y = 46.0
 		start_button.custom_minimum_size.y = 66.0
 		shop_button.custom_minimum_size.y = 50.0
-		privacy_button.offset_left = -190.0
-		privacy_button.offset_top = 22.0
-		privacy_button.offset_right = -24.0
-		privacy_button.offset_bottom = 68.0
+		control_help_label.custom_minimum_size.y = 34.0
+		privacy_button.custom_minimum_size.y = 32.0
 		_position_center_panel(result_panel, Vector2(520.0, 500.0))
 		_position_center_panel(shop_panel, Vector2(minf(980.0, content_size.x - 32.0), minf(620.0, content_size.y - 24.0)))
 		_position_center_panel(pause_panel, Vector2(420.0, 320.0))
 		hud_top_panel.offset_left = 26.0
 		hud_top_panel.offset_top = 20.0
 		hud_top_panel.offset_right = -26.0
-		hud_top_panel.offset_bottom = 94.0
-		hud_stats.columns = 4
-		hud_stats.add_theme_constant_override("h_separation", 24)
-		biome_label.custom_minimum_size.x = 240.0
-		power_bar.position = Vector2(34.0, 112.0)
-		power_bar.size = Vector2(265.0, 20.0)
-		shop_cards.columns = 4
-		shop_cards.custom_minimum_size.y = 294.0
-		toast_label.position = Vector2(-240.0, 150.0)
-		toast_label.size = Vector2(480.0, 52.0)
+		hud_top_panel.offset_bottom = 180.0
+		hud_margin.add_theme_constant_override("margin_left", 18)
+		hud_margin.add_theme_constant_override("margin_right", 18)
+		hud_margin.add_theme_constant_override("margin_top", 12)
+		hud_margin.add_theme_constant_override("margin_bottom", 12)
+		hud_box.add_theme_constant_override("separation", 8)
+		hud_stats.columns = 3
+		hud_stats.add_theme_constant_override("h_separation", 14)
+		hud_stats.add_theme_constant_override("v_separation", 0)
+		_style_hud_cards(false)
+		_set_font_size(goal_label, 16)
+		_set_font_size(biome_label, 16)
+		_set_font_size(goal_detail_label, 14)
+		goal_progress.custom_minimum_size.y = 16.0
+		power_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		power_button.offset_left = -300.0
+		power_button.offset_top = -190.0
+		power_button.offset_right = -34.0
+		power_button.offset_bottom = -54.0
+		power_button.add_theme_constant_override("icon_max_width", 70)
+		_set_font_size(power_button, 20)
+		_set_font_size(toast_label, 20)
+		_position_top_center(toast_label, 560.0, 196.0, 58.0)
+	_apply_shop_layout()
 
 	if mobile_mode:
 		control_help_label.text = "SWIPE TO MOVE  •  SWIPE UP TO JUMP  •  SWIPE DOWN TO DUCK"
@@ -1142,6 +1199,52 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 func _set_font_size(control: Control, font_size: int) -> void:
 	if is_instance_valid(control):
 		control.add_theme_font_size_override("font_size", font_size)
+
+func _apply_shop_layout() -> void:
+	if not is_instance_valid(shop_panel):
+		return
+	if portrait_layout:
+		shop_margin.add_theme_constant_override("margin_left", 40)
+		shop_margin.add_theme_constant_override("margin_right", 40)
+		shop_margin.add_theme_constant_override("margin_top", 38)
+		shop_margin.add_theme_constant_override("margin_bottom", 38)
+		shop_box.add_theme_constant_override("separation", 20)
+		shop_cards.columns = 2
+		shop_cards.add_theme_constant_override("h_separation", 24)
+		shop_cards.add_theme_constant_override("v_separation", 24)
+		shop_cards.custom_minimum_size.y = 1010.0
+		shop_medal_row.add_theme_constant_override("separation", 16)
+		shop_medal_row.custom_minimum_size.y = 116.0
+		_set_font_size(shop_heading, 42)
+		_set_font_size(shop_wallet, 28)
+		_set_font_size(shop_medals, 23)
+		_set_font_size(shop_back, 28)
+		shop_heading.custom_minimum_size.y = 106.0
+		shop_wallet.custom_minimum_size.y = 62.0
+		shop_back.custom_minimum_size.y = 88.0
+	else:
+		shop_margin.add_theme_constant_override("margin_left", 30)
+		shop_margin.add_theme_constant_override("margin_right", 30)
+		shop_margin.add_theme_constant_override("margin_top", 24)
+		shop_margin.add_theme_constant_override("margin_bottom", 24)
+		shop_box.add_theme_constant_override("separation", 8)
+		shop_cards.columns = 4
+		shop_cards.add_theme_constant_override("h_separation", 12)
+		shop_cards.add_theme_constant_override("v_separation", 12)
+		shop_cards.custom_minimum_size.y = 284.0
+		shop_medal_row.add_theme_constant_override("separation", 12)
+		shop_medal_row.custom_minimum_size.y = 52.0
+		_set_font_size(shop_heading, 28)
+		_set_font_size(shop_wallet, 16)
+		_set_font_size(shop_medals, 14)
+		_set_font_size(shop_back, 16)
+		shop_heading.custom_minimum_size.y = 52.0
+		shop_wallet.custom_minimum_size.y = 28.0
+		shop_back.custom_minimum_size.y = 46.0
+	for card in shop_cards.get_children():
+		_style_shop_card(card)
+	for medal_bubble in shop_medal_row.get_children():
+		medal_bubble.custom_minimum_size = Vector2(112, 104) if portrait_layout else Vector2(62, 48)
 
 func _position_center_panel(panel: Control, panel_size: Vector2) -> void:
 	if not is_instance_valid(panel):
@@ -1462,9 +1565,10 @@ func _build_ui() -> void:
 	menu_panel.offset_top = 18
 	menu_panel.offset_right = 532
 	menu_panel.offset_bottom = -18
-	var menu_panel_style := _panel_style(Color(0.018, 0.065, 0.13, 0.9), Color(0.19, 0.88, 0.84, 0.72), 2, 34)
+	var menu_panel_style := _panel_style(Color(0.018, 0.065, 0.13, 0.92), Color("#54eadb"), 4, 52)
 	menu_panel_style.shadow_color = Color(0.0, 0.015, 0.06, 0.66)
-	menu_panel_style.shadow_size = 22
+	menu_panel_style.shadow_size = 28
+	menu_panel_style.shadow_offset = Vector2(0, 8)
 	menu_panel.add_theme_stylebox_override("panel", menu_panel_style)
 	menu_layer.add_child(menu_panel)
 	menu_margin = MarginContainer.new()
@@ -1490,7 +1594,7 @@ func _build_ui() -> void:
 	_set_bold(menu_tagline)
 	menu_box.add_child(menu_tagline)
 	var stats_panel := PanelContainer.new()
-	stats_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.12, 0.2, 0.88), Color(0.35, 0.82, 0.86, 0.28), 1, 15))
+	stats_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.12, 0.2, 0.88), Color("#7ceee3"), 2, 24))
 	stats_panel.custom_minimum_size.y = 42
 	menu_box.add_child(stats_panel)
 	menu_wallet = _label("", 18, Color.WHITE)
@@ -1512,7 +1616,7 @@ func _build_ui() -> void:
 	daily_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	daily_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	daily_label.custom_minimum_size.y = 46
-	daily_label.add_theme_stylebox_override("normal", _panel_style(Color(0.36, 0.21, 0.035, 0.42), Color(1.0, 0.73, 0.23, 0.44), 1, 14))
+	daily_label.add_theme_stylebox_override("normal", _panel_style(Color(0.36, 0.21, 0.035, 0.58), Color("#ffd166"), 2, 24))
 	menu_box.add_child(daily_label)
 	start_button = _button("PLAY NOW", Color("#f5534d"), Color("#ffd05a"), 25)
 	start_button.custom_minimum_size.y = 66
@@ -1526,16 +1630,11 @@ func _build_ui() -> void:
 	control_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	control_help_label.custom_minimum_size.y = 34
 	menu_box.add_child(control_help_label)
-	privacy_button = _button("PRIVACY", Color(0.018, 0.06, 0.12, 0.82), Color(0.45, 0.9, 0.87, 0.72), 14)
+	privacy_button = _button("PRIVACY & DATA", Color(0.025, 0.11, 0.18, 0.72), Color(0.45, 0.9, 0.87, 0.48), 14)
 	privacy_button.name = "PrivacyAndDataButton"
 	privacy_button.tooltip_text = "Privacy policy and data-deletion instructions"
-	privacy_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	privacy_button.offset_left = -190
-	privacy_button.offset_top = 22
-	privacy_button.offset_right = -24
-	privacy_button.offset_bottom = 68
 	privacy_button.pressed.connect(_open_privacy_policy)
-	menu_layer.add_child(privacy_button)
+	menu_box.add_child(privacy_button)
 
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1546,38 +1645,99 @@ func _build_ui() -> void:
 	hud_top_panel.offset_left = 26
 	hud_top_panel.offset_top = 20
 	hud_top_panel.offset_right = -26
-	hud_top_panel.offset_bottom = 94
-	hud_top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.06, 0.13, 0.84), Color(1, 1, 1, 0.16), 2, 19))
+	hud_top_panel.offset_bottom = 164
+	var hud_panel_style := _panel_style(Color(0.018, 0.06, 0.12, 0.92), Color("#72eee1"), 3, 30)
+	hud_panel_style.shadow_color = Color(0.0, 0.02, 0.08, 0.5)
+	hud_panel_style.shadow_size = 14
+	hud_panel_style.shadow_offset = Vector2(0, 6)
+	hud_top_panel.add_theme_stylebox_override("panel", hud_panel_style)
 	hud.add_child(hud_top_panel)
+	hud_margin = MarginContainer.new()
+	hud_margin.name = "RaceDashboardMargin"
+	hud_margin.add_theme_constant_override("margin_left", 18)
+	hud_margin.add_theme_constant_override("margin_right", 18)
+	hud_margin.add_theme_constant_override("margin_top", 12)
+	hud_margin.add_theme_constant_override("margin_bottom", 12)
+	hud_top_panel.add_child(hud_margin)
+	hud_box = VBoxContainer.new()
+	hud_box.name = "RaceDashboard"
+	hud_box.add_theme_constant_override("separation", 8)
+	hud_margin.add_child(hud_box)
 	hud_stats = GridContainer.new()
-	hud_stats.columns = 4
-	hud_stats.add_theme_constant_override("h_separation", 24)
-	hud_stats.add_theme_constant_override("v_separation", 2)
-	hud_top_panel.add_child(hud_stats)
-	distance_label = _hud_stat(hud_stats, "0m")
-	feather_label = _hud_stat(hud_stats, "◆ 0")
-	combo_label = _hud_stat(hud_stats, "1× COMBO")
-	biome_label = _hud_stat(hud_stats, "CLASSIC STADIUM")
-	biome_label.custom_minimum_size.x = 240
-	power_bar = ProgressBar.new()
-	power_bar.position = Vector2(34, 112)
-	power_bar.size = Vector2(265, 20)
-	power_bar.max_value = 100.0
-	power_bar.show_percentage = false
-	power_bar.add_theme_stylebox_override("background", _panel_style(Color("#152a47"), Color(1, 1, 1, 0.2), 1, 9))
-	power_bar.add_theme_stylebox_override("fill", _panel_style(Color("#19c7b5"), Color("#9ff6ed"), 1, 9))
-	hud.add_child(power_bar)
-	power_button = _button("POWER", Color("#175c68"), Color("#2dd4bf"), 16)
+	hud_stats.columns = 3
+	hud_stats.add_theme_constant_override("h_separation", 14)
+	hud_box.add_child(hud_stats)
+	distance_label = _hud_stat_card(hud_stats, "DISTANCE", "0m", Color("#55d9ff"))
+	feather_label = _hud_stat_card(hud_stats, "FEATHERS", "0", Color("#ffd166"))
+	combo_label = _hud_stat_card(hud_stats, "DODGE STREAK", "1×", Color("#ff83b6"))
+	var goal_panel := PanelContainer.new()
+	goal_panel.name = "NextWorldGoal"
+	goal_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.03, 0.12, 0.18, 0.94), Color("#ffd166"), 2, 22))
+	hud_box.add_child(goal_panel)
+	var goal_margin := MarginContainer.new()
+	goal_margin.add_theme_constant_override("margin_left", 18)
+	goal_margin.add_theme_constant_override("margin_right", 18)
+	goal_margin.add_theme_constant_override("margin_top", 8)
+	goal_margin.add_theme_constant_override("margin_bottom", 8)
+	goal_panel.add_child(goal_margin)
+	var goal_box := VBoxContainer.new()
+	goal_box.add_theme_constant_override("separation", 5)
+	goal_margin.add_child(goal_box)
+	var goal_header := HBoxContainer.new()
+	goal_box.add_child(goal_header)
+	goal_label = _label("TOUR 1  •  STAGE 1 OF 6", 16, Color("#ffe7a3"))
+	goal_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_set_bold(goal_label)
+	goal_header.add_child(goal_label)
+	biome_label = _label("CLASSIC STADIUM", 16, Color.WHITE)
+	biome_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	biome_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_set_bold(biome_label)
+	goal_header.add_child(biome_label)
+	goal_progress = ProgressBar.new()
+	goal_progress.name = "NextWorldProgress"
+	goal_progress.max_value = BIOME_DISTANCE
+	goal_progress.show_percentage = false
+	goal_progress.custom_minimum_size.y = 16
+	goal_progress.add_theme_stylebox_override("background", _panel_style(Color("#102941"), Color(1, 1, 1, 0.16), 1, 10))
+	goal_progress.add_theme_stylebox_override("fill", _panel_style(Color("#ffb84d"), Color("#fff0a6"), 1, 10))
+	goal_box.add_child(goal_progress)
+	goal_detail_label = _label("NEXT: BEACH TRACK  •  225m  •  REWARD +5", 14, Color("#d9fbf6"))
+	goal_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_set_bold(goal_detail_label)
+	goal_box.add_child(goal_detail_label)
+	power_button = _button("SHIELD\nDODGE TO CHARGE", Color("#18bdb4"), Color("#b8fff5"), 20)
+	power_button.name = "FloatingPowerBuddy"
 	power_button.expand_icon = true
-	power_button.add_theme_constant_override("icon_max_width", 52)
+	power_button.add_theme_constant_override("icon_max_width", 70)
 	power_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	power_button.offset_left = -216
-	power_button.offset_top = -118
-	power_button.offset_right = -30
-	power_button.offset_bottom = -50
+	power_button.offset_left = -300
+	power_button.offset_top = -190
+	power_button.offset_right = -34
+	power_button.offset_bottom = -54
 	power_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	for state_name in ["normal", "hover", "pressed", "focus"]:
+		var bubble_color := Color("#18bdb4") if state_name != "pressed" else Color("#109a96")
+		var bubble_style := _panel_style(bubble_color, Color("#d7fff8"), 4, 72)
+		bubble_style.shadow_color = Color(0.02, 0.08, 0.13, 0.56)
+		bubble_style.shadow_size = 13
+		bubble_style.shadow_offset = Vector2(0, 7)
+		power_button.add_theme_stylebox_override(state_name, bubble_style)
 	power_button.pressed.connect(_activate_power)
 	hud.add_child(power_button)
+	power_bar = ProgressBar.new()
+	power_bar.name = "PowerCharge"
+	power_bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	power_bar.offset_left = 24
+	power_bar.offset_top = -30
+	power_bar.offset_right = -24
+	power_bar.offset_bottom = -14
+	power_bar.max_value = 100.0
+	power_bar.show_percentage = false
+	power_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	power_bar.add_theme_stylebox_override("background", _panel_style(Color("#0b5360"), Color(1, 1, 1, 0.32), 1, 9))
+	power_bar.add_theme_stylebox_override("fill", _panel_style(Color("#ffe066"), Color("#fff6be"), 1, 9))
+	power_button.add_child(power_bar)
 
 	touch_controls = Control.new()
 	touch_controls.name = "InputGestureLayer"
@@ -1620,29 +1780,45 @@ func _build_ui() -> void:
 
 	shop_layer = _modal_layer(ui_content_root)
 	shop_panel = _center_panel(shop_layer, Vector2(980, 620))
-	var shop_box := _modal_box(shop_panel)
-	var shop_heading := _label("SKINS & BIOME MEDALS", 32, Color.WHITE)
+	var shop_panel_style := _panel_style(Color("#fff3d8"), Color("#31d1c4"), 4, 38)
+	shop_panel_style.shadow_color = Color(0.02, 0.02, 0.12, 0.64)
+	shop_panel_style.shadow_size = 24
+	shop_panel.add_theme_stylebox_override("panel", shop_panel_style)
+	shop_box = _modal_box(shop_panel)
+	shop_margin = shop_box.get_parent() as MarginContainer
+	shop_heading = _label("CHOOSE YOUR RUNNER", 28, Color.WHITE)
 	shop_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_heading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shop_heading.custom_minimum_size.y = 52
+	shop_heading.add_theme_constant_override("outline_size", 0)
+	shop_heading.add_theme_stylebox_override("normal", _panel_style(Color("#ff5c70"), Color("#ffb04f"), 3, 24))
+	_set_bold(shop_heading)
 	shop_box.add_child(shop_heading)
-	shop_wallet = _label("", 17, Color("#ffe89a"))
+	shop_wallet = _label("", 16, Color("#173454"))
 	shop_wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_wallet.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shop_wallet.add_theme_constant_override("outline_size", 0)
+	shop_wallet.add_theme_stylebox_override("normal", _panel_style(Color("#d8fbf4"), Color("#66dccd"), 2, 18))
+	_set_bold(shop_wallet)
 	shop_box.add_child(shop_wallet)
 	shop_cards = GridContainer.new()
 	shop_cards.columns = 4
 	shop_cards.add_theme_constant_override("h_separation", 12)
 	shop_cards.add_theme_constant_override("v_separation", 12)
-	shop_cards.custom_minimum_size.y = 294
+	shop_cards.custom_minimum_size.y = 284
 	shop_box.add_child(shop_cards)
 	shop_medal_row = HBoxContainer.new()
 	shop_medal_row.name = "GeneratedMedalGallery"
 	shop_medal_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	shop_medal_row.add_theme_constant_override("separation", 20)
-	shop_medal_row.custom_minimum_size.y = 58
+	shop_medal_row.custom_minimum_size.y = 52
 	shop_box.add_child(shop_medal_row)
-	shop_medals = _label("", 13, Color("#b8d7ef"))
+	shop_medals = _label("", 14, Color("#34516c"))
 	shop_medals.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_medals.add_theme_constant_override("outline_size", 0)
+	_set_bold(shop_medals)
 	shop_box.add_child(shop_medals)
-	var shop_back := _button("BACK", Color("#263f68"), Color("#5c7cbd"), 17)
+	shop_back = _button("BACK TO HOME", Color("#20aeb0"), Color("#7af0df"), 16)
 	shop_back.pressed.connect(_show_menu)
 	shop_box.add_child(shop_back)
 
@@ -1665,6 +1841,7 @@ func _build_ui() -> void:
 	toast_label.size = Vector2(480, 52)
 	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_label.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.07, 0.15, 0.9), Color("#ffd166"), 2, 16))
 	toast_label.visible = false
 	ui_content_root.add_child(toast_label)
@@ -1733,58 +1910,121 @@ func _rebuild_shop_cards() -> void:
 		child.queue_free()
 	for child in shop_medal_row.get_children():
 		child.queue_free()
-	shop_wallet.text = "WALLET   ◆ %d   •   run farther to earn more" % GameManager.total_feathers
-	var medal_parts: Array[String] = []
+	shop_wallet.text = "◆  %d FEATHERS" % GameManager.total_feathers
+	var earned_medals := 0
+	var medal_colors := [Color("#20c7bc"), Color("#54c7f2"), Color("#8f75f5"), Color("#ff9c63"), Color("#82c86d"), Color("#ff6f9f")]
 	for biome_index in range(BIOMES.size()):
 		var medal_name := GameManager.medal_for_biome(biome_index)
-		medal_parts.append("%s: %s" % [BIOMES[biome_index].name, medal_name])
+		if medal_name != "—":
+			earned_medals += 1
+		var medal_bubble := PanelContainer.new()
+		medal_bubble.name = "%sMedalBubble" % BIOMES[biome_index].name.replace(" ", "")
+		medal_bubble.custom_minimum_size = Vector2(112, 104) if portrait_layout else Vector2(62, 48)
+		var medal_style := _panel_style(medal_colors[biome_index].lerp(Color.WHITE, 0.78), medal_colors[biome_index], 3, 28)
+		medal_style.shadow_color = Color(0.12, 0.08, 0.2, 0.24)
+		medal_style.shadow_size = 7
+		medal_style.shadow_offset = Vector2(0, 4)
+		medal_bubble.add_theme_stylebox_override("panel", medal_style)
+		shop_medal_row.add_child(medal_bubble)
 		var medal_icon := TextureRect.new()
 		medal_icon.name = "%sMedal" % BIOMES[biome_index].name.replace(" ", "")
-		medal_icon.custom_minimum_size = Vector2(60, 54)
 		medal_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		medal_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		medal_icon.texture = _atlas_texture(EFFECTS_MEDALS_ATLAS_PATH, 3, 2, _medal_cell(medal_name))
 		medal_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-		medal_icon.modulate.a = 0.22 if medal_name == "—" else 1.0
+		medal_icon.modulate.a = 0.3 if medal_name == "—" else 1.0
 		medal_icon.tooltip_text = "%s — %s medal" % [BIOMES[biome_index].name, medal_name]
-		shop_medal_row.add_child(medal_icon)
-	shop_medals.text = "   •   ".join(medal_parts)
+		medal_bubble.add_child(medal_icon)
+	shop_medals.text = "BIOME MEDALS  •  %d OF %d EARNED" % [earned_medals, BIOMES.size()]
 	var skin_colors := [Color("#13c7c4"), Color("#7c5cff"), Color("#f7c948"), Color("#ff5da2")]
 	for index in range(GameManager.SKINS.size()):
 		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(205, 284)
-		card.add_theme_stylebox_override("panel", _panel_style(Color(0.055, 0.1, 0.19, 0.96), skin_colors[index], 2, 18))
+		card.name = "RunnerCard%d" % index
+		card.set_meta("accent_color", skin_colors[index])
+		card.set_meta("selected", GameManager.selected_skin == index)
 		shop_cards.add_child(card)
 		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", 14)
-		margin.add_theme_constant_override("margin_right", 14)
-		margin.add_theme_constant_override("margin_top", 16)
-		margin.add_theme_constant_override("margin_bottom", 14)
+		margin.name = "CardMargin"
 		card.add_child(margin)
 		var box := VBoxContainer.new()
+		box.name = "CardBox"
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
-		box.add_theme_constant_override("separation", 10)
 		margin.add_child(box)
+		var portrait_bubble := PanelContainer.new()
+		portrait_bubble.name = "PortraitBubble"
+		portrait_bubble.add_theme_stylebox_override("panel", _panel_style(Color(1, 1, 1, 0.72), skin_colors[index].lerp(Color.WHITE, 0.35), 2, 28))
+		box.add_child(portrait_bubble)
 		var portrait := TextureRect.new()
-		portrait.name = "%sRunnerPortrait" % GameManager.SKINS[index]
+		portrait.name = "RunnerPortrait"
 		portrait.texture = load(RUNNER_ART_PATHS[index])
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-		portrait.custom_minimum_size = Vector2(128, 130)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		portrait.tooltip_text = "%s runner" % GameManager.SKINS[index]
-		box.add_child(portrait)
-		var name_label := _label(GameManager.SKINS[index], 20, Color.WHITE)
+		portrait_bubble.add_child(portrait)
+		var name_label := _label(GameManager.SKINS[index].to_upper(), 20, Color("#173454"))
+		name_label.name = "RunnerName"
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_label.add_theme_constant_override("outline_size", 0)
+		_set_bold(name_label)
 		box.add_child(name_label)
-		var detail := _label("OWNED" if index in GameManager.owned_skins else "◆ %d" % GameManager.SKIN_COSTS[index], 14, Color("#ffe89a"))
+		var detail_text := "READY TO WEAR" if index in GameManager.owned_skins else "◆ %d FEATHERS" % GameManager.SKIN_COSTS[index]
+		var detail := _label(detail_text, 14, Color("#6d4963"))
+		detail.name = "RunnerPrice"
 		detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		detail.add_theme_constant_override("outline_size", 0)
 		box.add_child(detail)
-		var action_text := "EQUIPPED" if GameManager.selected_skin == index else ("EQUIP" if index in GameManager.owned_skins else "UNLOCK")
-		var action := _button(action_text, skin_colors[index].darkened(0.45), skin_colors[index], 15)
+		var action_text := "WEARING" if GameManager.selected_skin == index else ("WEAR IT" if index in GameManager.owned_skins else "UNLOCK")
+		var action := _button(action_text, skin_colors[index].darkened(0.16), skin_colors[index].lightened(0.18), 15)
+		action.name = "RunnerAction"
 		action.disabled = GameManager.selected_skin == index
+		if action.disabled:
+			action.add_theme_color_override("font_disabled_color", Color.WHITE)
+			action.add_theme_stylebox_override("disabled", _panel_style(skin_colors[index].darkened(0.1), Color.WHITE, 3, 22))
 		action.pressed.connect(_select_skin.bind(index))
 		box.add_child(action)
+		_style_shop_card(card)
+	_apply_shop_layout()
+
+func _style_shop_card(card: Control) -> void:
+	if not is_instance_valid(card) or not card.has_meta("accent_color"):
+		return
+	var accent: Color = card.get_meta("accent_color")
+	var selected: bool = card.get_meta("selected")
+	var card_style := _panel_style(accent.lerp(Color("#fffaf0"), 0.8), accent, 5 if selected else 3, 34)
+	card_style.shadow_color = Color(0.14, 0.08, 0.2, 0.28)
+	card_style.shadow_size = 10
+	card_style.shadow_offset = Vector2(0, 6)
+	card.add_theme_stylebox_override("panel", card_style)
+	var margin := card.get_node("CardMargin") as MarginContainer
+	var box := card.get_node("CardMargin/CardBox") as VBoxContainer
+	var portrait_bubble := card.get_node("CardMargin/CardBox/PortraitBubble") as PanelContainer
+	var portrait := card.get_node("CardMargin/CardBox/PortraitBubble/RunnerPortrait") as TextureRect
+	var name_label := card.get_node("CardMargin/CardBox/RunnerName") as Label
+	var detail := card.get_node("CardMargin/CardBox/RunnerPrice") as Label
+	var action := card.get_node("CardMargin/CardBox/RunnerAction") as Button
+	if portrait_layout:
+		card.custom_minimum_size = Vector2(400, 492)
+		for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+			margin.add_theme_constant_override(side, 24)
+		box.add_theme_constant_override("separation", 14)
+		portrait_bubble.custom_minimum_size = Vector2(280, 270)
+		portrait.custom_minimum_size = Vector2(260, 250)
+		_set_font_size(name_label, 29)
+		_set_font_size(detail, 20)
+		_set_font_size(action, 22)
+		action.custom_minimum_size.y = 68
+	else:
+		card.custom_minimum_size = Vector2(205, 276)
+		for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+			margin.add_theme_constant_override(side, 12)
+		box.add_theme_constant_override("separation", 7)
+		portrait_bubble.custom_minimum_size = Vector2(126, 122)
+		portrait.custom_minimum_size = Vector2(118, 114)
+		_set_font_size(name_label, 18)
+		_set_font_size(detail, 13)
+		_set_font_size(action, 14)
+		action.custom_minimum_size.y = 42
 
 func _select_skin(index: int) -> void:
 	if GameManager.buy_or_equip_skin(index):
@@ -1814,15 +2054,29 @@ func _quit_run() -> void:
 	_show_results()
 
 func _update_hud() -> void:
-	distance_label.text = "%dm" % int(distance)
-	feather_label.text = "◆ %d" % run_feathers
-	combo_label.text = "%d× COMBO" % combo
+	distance_label.text = "%d m" % int(distance)
+	feather_label.text = "%d" % run_feathers
+	combo_label.text = "%d×" % combo
+	var stage := int(distance / BIOME_DISTANCE)
+	var stage_in_tour := stage % biome_sequence.size()
+	var stage_progress := fmod(distance, BIOME_DISTANCE)
+	var next_biome_index: int = biome_sequence[(stage_in_tour + 1) % biome_sequence.size()]
+	var meters_remaining := maxi(0, int(ceil(BIOME_DISTANCE - stage_progress)))
+	goal_progress.value = stage_progress
+	goal_label.text = "TOUR %d  •  STAGE %d OF %d" % [int(stage / biome_sequence.size()) + 1, stage_in_tour + 1, biome_sequence.size()]
+	biome_label.text = BIOMES[current_biome].name.to_upper()
+	var reward := TOUR_REWARD if stage_in_tour == biome_sequence.size() - 1 else CHECKPOINT_REWARD
+	goal_detail_label.text = "NEXT: %s  •  %dm  •  +%d FEATHERS" % [BIOMES[next_biome_index].name.to_upper(), meters_remaining, reward]
 	power_bar.value = power_charge
 	var power_name: String = GameManager.POWERS[GameManager.selected_power]
 	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
-	power_button.text = "%s\n%s" % [power_name.to_upper(), "READY — E" if power_charge >= 100.0 else "%d%%" % int(power_charge)]
+	if power_charge >= 100.0:
+		power_button.text = "%s READY!\n%s" % [power_name.to_upper(), "TAP TO USE" if mobile_mode else "PRESS E"]
+	else:
+		power_button.text = "%s  %d%%\nDODGE TO CHARGE" % [power_name.to_upper(), int(power_charge)]
 	if power_timer > 0.0:
-		power_button.text = "%s  %.1fs" % [power_name.to_upper(), power_timer]
+		power_button.text = "%s ACTIVE\n%.1f SECONDS" % [power_name.to_upper(), power_timer]
+	power_button.modulate = Color.WHITE if power_charge >= 100.0 or power_timer > 0.0 else Color(0.84, 0.92, 0.95, 1.0)
 
 func _medal_cell(medal_name: String) -> int:
 	var normalized := medal_name.to_lower()
@@ -1836,7 +2090,7 @@ func _show_toast(message: String) -> void:
 	toast_label.text = message
 	toast_label.visible = true
 	toast_label.modulate.a = 1.0
-	toast_time = 1.7
+	toast_time = 2.4
 
 func _label(text_value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
@@ -1864,10 +2118,10 @@ func _button(text_value: String, base: Color, border: Color, font_size: int) -> 
 	button.add_theme_color_override("font_focus_color", Color.WHITE)
 	button.add_theme_color_override("font_shadow_color", Color(0.0, 0.02, 0.07, 0.72))
 	button.add_theme_constant_override("shadow_offset_y", 2)
-	var normal_style := _panel_style(base, border, 2, 18)
-	var hover_style := _panel_style(base.lightened(0.1), border.lightened(0.12), 3, 18)
-	var pressed_style := _panel_style(base.darkened(0.1), Color("#fff1bd"), 2, 18)
-	var focus_style := _panel_style(base.lightened(0.04), Color("#fff1bd"), 3, 18)
+	var normal_style := _panel_style(base, border, 3, 26)
+	var hover_style := _panel_style(base.lightened(0.1), border.lightened(0.12), 4, 26)
+	var pressed_style := _panel_style(base.darkened(0.1), Color("#fff1bd"), 3, 26)
+	var focus_style := _panel_style(base.lightened(0.04), Color("#fff1bd"), 4, 26)
 	for style in [normal_style, hover_style, pressed_style, focus_style]:
 		style.content_margin_left = 18.0
 		style.content_margin_right = 18.0
@@ -1878,7 +2132,7 @@ func _button(text_value: String, base: Color, border: Color, font_size: int) -> 
 	button.add_theme_stylebox_override("hover", hover_style)
 	button.add_theme_stylebox_override("pressed", pressed_style)
 	button.add_theme_stylebox_override("focus", focus_style)
-	button.add_theme_stylebox_override("disabled", _panel_style(base.darkened(0.28), Color(1, 1, 1, 0.18), 1, 18))
+	button.add_theme_stylebox_override("disabled", _panel_style(base.darkened(0.28), Color(1, 1, 1, 0.18), 2, 26))
 	return button
 
 func _panel_style(color: Color, border_color: Color, width: int, radius: int) -> StyleBoxFlat:
@@ -1893,13 +2147,57 @@ func _panel_style(color: Color, border_color: Color, width: int, radius: int) ->
 	style.shadow_size = 10
 	return style
 
-func _hud_stat(parent: Container, value: String) -> Label:
-	var label := _label(value, 18, Color.WHITE)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.custom_minimum_size = Vector2(150, 62)
-	parent.add_child(label)
-	return label
+func _hud_stat_card(parent: Container, title: String, value: String, accent: Color) -> Label:
+	var card := PanelContainer.new()
+	card.name = title.to_pascal_case() + "Card"
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _panel_style(accent.darkened(0.72), accent, 2, 20))
+	parent.add_child(card)
+	var margin := MarginContainer.new()
+	margin.name = "StatMargin"
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	card.add_child(margin)
+	var box := VBoxContainer.new()
+	box.name = "StatBox"
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 0)
+	margin.add_child(box)
+	var title_label := _label(title, 12, accent.lightened(0.28))
+	title_label.name = "StatTitle"
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_set_bold(title_label)
+	box.add_child(title_label)
+	var value_label := _label(value, 22, Color.WHITE)
+	value_label.name = "StatValue"
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_set_bold(value_label)
+	box.add_child(value_label)
+	return value_label
+
+func _style_hud_cards(is_portrait: bool) -> void:
+	for card_node in hud_stats.get_children():
+		var card := card_node as PanelContainer
+		if card == null:
+			continue
+		card.custom_minimum_size.y = 94.0 if is_portrait else 50.0
+		var title := card.get_node("StatMargin/StatBox/StatTitle") as Label
+		var value := card.get_node("StatMargin/StatBox/StatValue") as Label
+		_set_font_size(title, 19 if is_portrait else 11)
+		_set_font_size(value, 35 if is_portrait else 20)
+
+func _position_top_center(control: Control, width: float, top: float, height: float) -> void:
+	control.anchor_left = 0.5
+	control.anchor_right = 0.5
+	control.anchor_top = 0.0
+	control.anchor_bottom = 0.0
+	control.offset_left = -width * 0.5
+	control.offset_right = width * 0.5
+	control.offset_top = top
+	control.offset_bottom = top + height
 
 func _modal_layer(parent: Node) -> Control:
 	var layer := Control.new()

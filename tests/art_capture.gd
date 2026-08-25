@@ -66,7 +66,19 @@ func _run() -> void:
 	for i in range(10):
 		await process_frame
 	game.refresh_ad_layout()
+	game.current_biome = 0
+	game._apply_biome(0, true)
+	game._update_hud()
 	_save_frame("portrait_gameplay.png")
+	game.mobile_mode = true
+	game.power_charge = 100.0
+	game._update_hud()
+	game._show_toast("CHECKPOINT!  +5 FEATHERS")
+	for i in range(4):
+		await process_frame
+	_save_frame("portrait_goal_and_power_ready.png")
+	game.power_charge = 0.0
+	game.toast_label.visible = false
 	game.mobile_mode = true
 	game._show_menu()
 	game.refresh_ad_layout()

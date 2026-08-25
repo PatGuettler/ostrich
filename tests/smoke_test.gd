@@ -39,6 +39,10 @@ func _run() -> void:
 		push_error("The menu is missing its Privacy & Data button")
 		quit(1)
 		return
+	if not game.menu_panel.is_ancestor_of(game.privacy_button):
+		push_error("Privacy & Data must be a quiet footer inside the menu, not a top-corner overlay")
+		quit(1)
+		return
 	if game._ad_bottom_reserve() != 0.0:
 		push_error("Desktop/headless play unexpectedly reserves an ad bar")
 		quit(1)
@@ -143,11 +147,19 @@ func _run() -> void:
 		or absf(game.ui_content_root.size.y - expected_content_height) > 1.0
 		or not game.portrait_layout
 		or game.camera.fov < 80.0
-		or game.hud_stats.columns != 2
+		or game.hud_stats.columns != 3
+		or game.goal_label.text.is_empty()
+		or game.goal_progress.max_value != game.BIOME_DISTANCE
+		or game.power_bar.get_parent() != game.power_button
+		or game.power_button.position.x + game.power_button.size.x > portrait_viewport_size.x
+		or game.power_button.position.y + game.power_button.size.y > expected_content_height
 		or game.shop_cards.columns != 2
 		or game.menu_panel.position.x < 0.0
 		or game.menu_panel.position.y < 0.0
 		or game.menu_panel.position.x + game.menu_panel.size.x > portrait_viewport_size.x
+		or game.menu_panel.size.x < portrait_viewport_size.x * 0.8
+		or game.start_button.custom_minimum_size.y < 120.0
+		or game.start_button.get_theme_stylebox("normal").corner_radius_top_left < 24
 		or game.shop_panel.position.x < 0.0
 		or game.shop_panel.position.y < 0.0
 		or game.shop_panel.position.x + game.shop_panel.size.x > portrait_viewport_size.x
@@ -163,6 +175,39 @@ func _run() -> void:
 		)
 		quit(1)
 		return
+	game._show_toast("CHECKPOINT!  +5 FEATHERS")
+	await process_frame
+	if (
+		game.toast_label.position.x < 0.0
+		or game.toast_label.position.x + game.toast_label.size.x > portrait_viewport_size.x
+		or game.toast_label.position.y < game.hud_top_panel.position.y + game.hud_top_panel.size.y
+		or game.toast_label.position.y + game.toast_label.size.y > expected_content_height
+	):
+		push_error("Portrait checkpoint popup leaves the visible ad-safe play area")
+		quit(1)
+		return
+	game.toast_label.visible = false
+	game._show_shop()
+	await process_frame
+	await process_frame
+	var portrait_cards: Array[Node] = game.shop_cards.get_children()
+	var portrait_medals: Array[Node] = game.shop_medal_row.get_children()
+	if (
+		game.shop_heading.text != "CHOOSE YOUR RUNNER"
+		or portrait_cards.size() != GameManager.SKINS.size()
+		or portrait_medals.size() != game.BIOMES.size()
+		or portrait_cards.is_empty()
+		or portrait_medals.is_empty()
+		or not (portrait_medals[0] is PanelContainer)
+		or (portrait_cards[0] as Control).custom_minimum_size.x < 390.0
+		or (portrait_cards[0].get_node("CardMargin/CardBox/PortraitBubble/RunnerPortrait") as TextureRect) == null
+		or (portrait_cards[0].get_node("CardMargin/CardBox/RunnerAction") as Button).get_theme_font_size("font_size") < 22
+		or game.shop_panel.position.y < 0.0
+		or game.shop_panel.position.y + game.shop_panel.size.y > expected_content_height
+	):
+		push_error("Portrait shop is not using its large, bubbly, ad-safe presentation")
+		quit(1)
+		return
 	root.size = Vector2i(1280, 720)
 	await process_frame
 	await process_frame
@@ -172,7 +217,7 @@ func _run() -> void:
 	if (
 		game.portrait_layout
 		or absf(game.camera.fov - 63.0) > 0.1
-		or game.hud_stats.columns != 4
+		or game.hud_stats.columns != 3
 		or game.shop_cards.columns != 4
 	):
 		push_error("Landscape layout did not restore its wide-screen camera and grids")
@@ -392,6 +437,19 @@ func _run() -> void:
 		push_error("A new run does not provide enough space before its first obstacle")
 		quit(1)
 		return
+	game.distance = game.BIOME_DISTANCE + 1.0
+	game._update_run(0.0)
+	if (
+		game.checkpoint_stage != 1
+		or game.run_feathers != game.CHECKPOINT_REWARD
+		or game.goal_progress.value <= 0.0
+		or "NEXT:" not in game.goal_detail_label.text
+	):
+		push_error("Biome checkpoint did not award progress or update the visible run goal")
+		quit(1)
+		return
+	game.run_feathers = 0
+	game.checkpoint_stage = 0
 	game.distance = 0.0
 	for i in range(12):
 		var early_gap: float = game._next_spawn_gap()

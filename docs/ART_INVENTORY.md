@@ -86,11 +86,11 @@ This is the production checklist for bringing every visible gameplay element up 
 
 | Screen/object | Current render | Replacement or polish |
 | --- | --- | --- |
-| HUD feather count | Diamond character | Feather art icon |
-| Power button | Text-only button | Matching power icon plus text/state |
-| Skin shop cards | Solid color swatches | Actual character skin portraits |
-| Biome medals | Single text line | Bronze/silver/gold badge art and clearer cards |
-| Startup menu | Basic text title and generic stacked controls | Generated dimensional title crest, bundled Noto Sans Display type, bold CTA hierarchy, stat/loadout chips, and responsive glass card |
+| Race dashboard | Unlabeled four-value bar | Three large labeled stat cards plus Tour/Stage, current biome, next-world distance, reward, and checkpoint progress |
+| Power button | Detached meter and tiny corner button | Animated floating ability bubble beside the runner with power art, charge instructions, embedded meter, and mobile “Tap to use” state |
+| Skin shop cards | Pastel candy cards | Large character portraits, colored portrait bubbles, chunky unlock/wear buttons, and a responsive 2×2 phone layout |
+| Biome medals | Medal bubble gallery | Six individually tinted, rounded badge bubbles with a readable earned-medal summary |
+| Startup menu | Dimensional title menu | Oversized responsive glass card, extra-rounded candy controls, bundled readable type, clear CTA hierarchy, stat/loadout pills, and a quiet in-card Privacy & Data footer |
 | Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents, bold embedded display font |
 | Touch controls | Arrow text | Mobile remains swipe-only; desktop controls stay unobtrusive |
 | Results/pause/toast | Flat modal panels | Same polished panel language with small character/reward art accents |

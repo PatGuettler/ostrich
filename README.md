@@ -28,9 +28,9 @@ Controls:
 - More breathable hazard spacing with occasional late-run two-lane patterns, plus hurdles, walls, cones, drones, slippery patches, and independently animated rival runners
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art
-- Background changes every 225 meters through a coordinated 4.5-second vista, lighting, fog, track-material, and prop transition; non-stadium biomes are reshuffled for every complete tour with no consecutive repeats
-- Distance score, clean-dodge combo, near-misses, feathers, and personal best
-- Shield, Magnet, Slow-Mo, and Score Rush chargeable power-ups
+- Each 225-meter biome is a visible Tour stage with next-world progress and a +5 feather checkpoint reward; clearing all six stages awards a +25 Tour bonus before a reshuffled tour begins
+- Large labeled Distance, Feathers, and Dodge Streak cards keep the important run stats readable in both orientations
+- Shield, Magnet, Slow-Mo, and Score Rush charge from clean dodges and feathers, then activate from a floating in-world-style ability bubble beside the runner
 - Persistent feather wallet, four unlockable skins, and biome medals
 - Daily 15-feather challenge and persistent save data
 - Pause, results, retry, shop, and loadout screens
