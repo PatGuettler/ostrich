@@ -15,7 +15,7 @@ Google Play package names cannot be changed after the app is created. Confirm th
 1. installs the pinned Godot 4.7.1 editor and Android export templates;
 2. restores or creates Godot's Gradle Android build template;
 3. installs the Poing AdMob Android binaries;
-4. injects the release AdMob App ID without committing it;
+4. injects the release AdMob and Play Games leaderboard IDs without committing them;
 5. signs and exports `builds/android/OstrichDash.aab`;
 6. validates the AAB package, version, and signature;
 7. runs the gameplay smoke test; and
@@ -32,6 +32,8 @@ Create these repository secrets under **Settings → Secrets and variables → A
 | `KEYSTORE_PASSWORD` | Upload-keystore password |
 | `SERVICE_ACCOUNT_JSON` | Complete Google Play Developer API service-account JSON |
 | `OSTRICH_DASH_ADMOB_ANDROID_APP_ID` | Ostrich Dash AdMob App ID in `ca-app-pub-…~…` form |
+| `OSTRICH_DASH_PLAY_GAMES_APP_ID` | Numeric Play Games Services project ID |
+| `OSTRICH_DASH_LEADERBOARD_ID` | Generated ID of the `Longest Dash` leaderboard |
 
 Encode an existing upload keystore on Linux without line wrapping:
 
@@ -54,11 +56,12 @@ Recorded production IDs (not served while testing):
 2. Enable the Google Play Developer API for the Google Cloud project that owns the service account.
 3. Invite that service account in Play Console and grant it release access to Ostrich Dash.
 4. Keep the internal-testing track (this is how Peregrine ships). Add testers and complete any Console forms required before a release can be accepted. Do not point CI at closed testing until the Play app is no longer a draft.
-5. Add the shared Grapegames listing URLs:
+5. Configure Play Games Services, create the larger-is-better `Longest Dash` leaderboard, add the release signing SHA-1 credential, publish its configuration, and add both generated IDs as CI secrets. See `docs/LEADERBOARD.md`.
+6. Add the shared Grapegames listing URLs:
    - Website: `https://patguettler.github.io`
    - Privacy policy: `https://patguettler.github.io/privacy-policy.html`
    - Data deletion: `https://patguettler.github.io/privacy-policy.html#data-deletion`
-6. Declare **Contains ads** and complete Data safety, target-audience, and content-rating forms from the final build's behavior.
+7. Declare **Contains ads** and complete Data safety, target-audience, and content-rating forms from the final build's behavior.
 
 The Play API service account uploads releases; it does not replace creation and initial configuration of the Play Console app.
 
@@ -69,6 +72,8 @@ The same script can build locally on Linux when Java 17, the Android SDK, and si
 ```bash
 export ANDROID_HOME=/absolute/path/to/Android/Sdk
 export OSTRICH_DASH_ADMOB_ANDROID_APP_ID='ca-app-pub-…~…'
+export OSTRICH_DASH_PLAY_GAMES_APP_ID='123456789012'
+export OSTRICH_DASH_LEADERBOARD_ID='CgkI...'
 export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/absolute/path/to/upload.keystore
 export GODOT_ANDROID_KEYSTORE_RELEASE_USER='your-key-alias'
 export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD='your-password'

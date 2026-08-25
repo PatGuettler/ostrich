@@ -17,10 +17,47 @@ func _run() -> void:
 		quit(1)
 		return
 	game.audio_enabled = false
-	root.get_node("GameManager").save_enabled = false
+	var game_manager: Node = root.get_node("GameManager")
+	game_manager.save_enabled = false
+	var wardrobe_cost := 0
+	for skin_cost in game_manager.SKIN_COSTS:
+		wardrobe_cost += int(skin_cost)
+	if (
+		game_manager.SKINS.size() < 12
+		or game_manager.SKIN_COSTS.size() != game_manager.SKINS.size()
+		or game_manager.SKIN_COSTS[1] < 1000
+		or game_manager.SKIN_COSTS[-1] < 200000
+		or wardrobe_cost < 700000
+	):
+		push_error("The expanded multi-hour wardrobe economy is missing or too inexpensive")
+		quit(1)
+		return
+	for skin_index in range(1, game_manager.SKIN_COSTS.size()):
+		if game_manager.SKIN_COSTS[skin_index] <= game_manager.SKIN_COSTS[skin_index - 1]:
+			push_error("Skin prices must increase with each rarer color")
+			quit(1)
+			return
 	var ad_bar_service: Node = root.get_node_or_null("AdBarService")
 	if not is_instance_valid(ad_bar_service):
 		push_error("AdBarService autoload is missing")
+		quit(1)
+		return
+	var leaderboard_service: Node = root.get_node_or_null("LeaderboardService")
+	if (
+		not is_instance_valid(leaderboard_service)
+		or leaderboard_service.available
+		or not leaderboard_service.leaderboard_id.is_empty()
+		or leaderboard_service.show_global_scores()
+	):
+		push_error("The optional Play Games leaderboard service is missing or unsafe without release IDs")
+		quit(1)
+		return
+	if bool(ProjectSettings.get_setting("application/config/quit_on_go_back", true)):
+		push_error("Android native back is still configured to quit the app")
+		quit(1)
+		return
+	if game.BIOMES.size() < 9 or game_manager.biome_bests.size() != game.BIOMES.size():
+		push_error("The expanded nine-biome tour is incomplete")
 		quit(1)
 		return
 	if ad_bar_service.banner_unit_id_for("ostrich_dash", "Android").is_empty():
@@ -43,6 +80,28 @@ func _run() -> void:
 		push_error("Privacy & Data must be a quiet footer inside the menu, not a top-corner overlay")
 		quit(1)
 		return
+	if (
+		not is_instance_valid(game.music_toggle_button)
+		or not is_instance_valid(game.music_player)
+		or game.background_music == null
+		or game.background_music.loop_mode != AudioStreamWAV.LOOP_FORWARD
+		or "MUSIC" not in game.music_toggle_button.text
+		or not game.menu_panel.is_ancestor_of(game.music_toggle_button)
+	):
+		push_error("The original looping background music or its in-menu toggle is missing")
+		quit(1)
+		return
+	var initial_music_enabled: bool = game_manager.music_enabled
+	game._toggle_music()
+	if game_manager.music_enabled == initial_music_enabled or ("OFF" in game.music_toggle_button.text) == game_manager.music_enabled:
+		push_error("Music toggle did not immediately update its saved setting and playback")
+		quit(1)
+		return
+	game._toggle_music()
+	if game_manager.music_enabled != initial_music_enabled or ("ON" in game.music_toggle_button.text) != initial_music_enabled:
+		push_error("Music toggle did not restore its original playback state")
+		quit(1)
+		return
 	if game._ad_bottom_reserve() != 0.0:
 		push_error("Desktop/headless play unexpectedly reserves an ad bar")
 		quit(1)
@@ -61,6 +120,7 @@ func _run() -> void:
 		game.MENU_LOGO_PATH,
 		game.UI_FONT_PATH,
 		game.UI_FONT_BOLD_PATH,
+		game.player.RUN_LEG_SHEET_PATH,
 	])
 	required_art.append_array(game.SURFACE_PATHS)
 	for art_path in required_art:
@@ -78,6 +138,18 @@ func _run() -> void:
 	var logo_image := logo_texture.get_image() if logo_texture != null else null
 	if logo_image == null or logo_image.is_empty() or logo_image.detect_alpha() == Image.ALPHA_NONE:
 		push_error("The startup-menu logo is missing its transparent background")
+		quit(1)
+		return
+	var leg_sheet_texture := load(game.player.RUN_LEG_SHEET_PATH) as Texture2D
+	var leg_sheet_image := leg_sheet_texture.get_image() if leg_sheet_texture != null else null
+	if (
+		leg_sheet_texture == null
+		or leg_sheet_texture.get_width() != 1536
+		or leg_sheet_texture.get_height() != 1024
+		or leg_sheet_image == null
+		or leg_sheet_image.detect_alpha() == Image.ALPHA_NONE
+	):
+		push_error("The six-pose runner leg sheet is missing, malformed, or not transparent")
 		quit(1)
 		return
 	if (
@@ -100,22 +172,70 @@ func _run() -> void:
 		return
 	if (
 		not game.player.character_sprite.texture.resource_path.ends_with("_body_back.png")
-		or not is_instance_valid(game.player.left_leg_sprite)
-		or not is_instance_valid(game.player.right_leg_sprite)
+		or not is_instance_valid(game.player.run_leg_sprite)
+		or game.player.run_leg_sprite.texture.resource_path != game.player.RUN_LEG_SHEET_PATH
+		or game.player.run_leg_sprite.hframes != 3
+		or game.player.run_leg_sprite.vframes != 2
 	):
-		push_error("Gameplay runner is missing its independently animated leg layers")
+		push_error("Gameplay runner is missing its generated six-pose leg cycle")
 		quit(1)
 		return
+	if (
+		not is_instance_valid(game.power_effect_root)
+		or game.power_effect_root.get_parent() != game.player
+		or not is_instance_valid(game.power_effect_shell)
+		or game.power_effect_rings.size() < 2
+		or game.power_effect_icons.size() < 3
+	):
+		push_error("The runner is missing its attached full-duration power aura rig")
+		quit(1)
+		return
+	var original_power: int = game_manager.selected_power
+	var seen_power_icons := {}
+	var seen_power_colors := {}
+	game.state = game.GameState.RUNNING
+	game.player.visible = true
+	for power_index in range(game_manager.POWERS.size()):
+		game_manager.selected_power = power_index
+		game.power_charge = 100.0
+		game.power_timer = 0.0
+		game.elapsed = 0.75 + float(power_index)
+		game._activate_power()
+		game._update_power_effect(0.016)
+		var power_icon_texture := game.power_effect_icons[0].texture as AtlasTexture
+		var power_material := game.power_effect_shell.material_override as StandardMaterial3D
+		if (
+			not game.power_effect_root.visible
+			or game.power_timer <= 0.0
+			or power_icon_texture == null
+			or power_material == null
+		):
+			push_error("Power %d did not create a visible runner-following effect" % power_index)
+			quit(1)
+			return
+		seen_power_icons[str(power_icon_texture.region)] = true
+		seen_power_colors[power_material.emission.to_html()] = true
+		game.power_timer = 0.01
+		game._update_power(0.02)
+		if game.power_effect_root.visible:
+			push_error("Power %d effect remained after its gameplay timer expired" % power_index)
+			quit(1)
+			return
+	if seen_power_icons.size() != game_manager.POWERS.size() or seen_power_colors.size() != game_manager.POWERS.size():
+		push_error("Power effects do not have four distinct generated icons and aura colors")
+		quit(1)
+		return
+	game_manager.selected_power = original_power
+	game._show_menu()
 	for skin_index in range(game.player.BODY_TEXTURE_PATHS.size()):
 		game.player.apply_skin(skin_index)
 		var expected_body: String = game.player.BODY_TEXTURE_PATHS[skin_index]
-		var expected_legs: String = game.player.SKIN_TEXTURE_PATHS[skin_index]
-		var left_leg_texture: Texture2D = (game.player.left_leg_sprite.material_override as ShaderMaterial).get_shader_parameter("leg_texture")
+		var leg_sheet: Texture2D = (game.player.run_leg_sprite.material_override as ShaderMaterial).get_shader_parameter("texture_albedo")
 		if (
 			game.player.character_sprite.texture.resource_path != expected_body
-			or left_leg_texture.resource_path != expected_legs
+			or leg_sheet.resource_path != game.player.RUN_LEG_SHEET_PATH
 		):
-			push_error("Runner skin did not update both its body and animated leg layers")
+			push_error("Runner skin did not retain its body and generated run-cycle legs")
 			quit(1)
 			return
 	game.player.apply_skin(0)
@@ -154,6 +274,10 @@ func _run() -> void:
 		or game.power_button.position.x + game.power_button.size.x > portrait_viewport_size.x
 		or game.power_button.position.y + game.power_button.size.y > expected_content_height
 		or game.shop_cards.columns != 2
+		or game.shop_medal_row.columns != 5
+		or not is_instance_valid(game.shop_scroll)
+		or game.shop_scroll.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+		or game.shop_scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_AUTO
 		or game.menu_panel.position.x < 0.0
 		or game.menu_panel.position.y < 0.0
 		or game.menu_panel.position.x + game.menu_panel.size.x > portrait_viewport_size.x
@@ -164,6 +288,19 @@ func _run() -> void:
 		or game.shop_panel.position.y < 0.0
 		or game.shop_panel.position.x + game.shop_panel.size.x > portrait_viewport_size.x
 		or game.shop_panel.position.y + game.shop_panel.size.y > expected_content_height
+		or game.result_panel.position.x < 0.0
+		or game.result_panel.position.y < 0.0
+		or game.result_panel.position.x + game.result_panel.size.x > portrait_viewport_size.x
+		or game.result_panel.position.y + game.result_panel.size.y > expected_content_height
+		or game.result_stats_grid.columns != 2
+		or not is_instance_valid(game.leaderboard_button)
+		or not is_instance_valid(game.result_leaderboard_button)
+		or not game.menu_panel.is_ancestor_of(game.leaderboard_button)
+		or not game.result_panel.is_ancestor_of(game.result_leaderboard_button)
+		or game.result_stats_grid.get_child_count() != 4
+		or game.result_runner_portrait.custom_minimum_size.x < 350.0
+		or game.result_retry_button.custom_minimum_size.y < 100.0
+		or not game.result_panel.is_ancestor_of(game.result_medal_icon)
 	):
 		push_error(
 			"Portrait/ad-safe layout failed: viewport=%s content=%s offsets=%.1f/%.1f" % [
@@ -194,7 +331,7 @@ func _run() -> void:
 	var portrait_medals: Array[Node] = game.shop_medal_row.get_children()
 	if (
 		game.shop_heading.text != "CHOOSE YOUR RUNNER"
-		or portrait_cards.size() != GameManager.SKINS.size()
+		or portrait_cards.size() != game_manager.SKINS.size()
 		or portrait_medals.size() != game.BIOMES.size()
 		or portrait_cards.is_empty()
 		or portrait_medals.is_empty()
@@ -202,6 +339,7 @@ func _run() -> void:
 		or (portrait_cards[0] as Control).custom_minimum_size.x < 390.0
 		or (portrait_cards[0].get_node("CardMargin/CardBox/PortraitBubble/RunnerPortrait") as TextureRect) == null
 		or (portrait_cards[0].get_node("CardMargin/CardBox/RunnerAction") as Button).get_theme_font_size("font_size") < 22
+		or game.shop_cards.size.y <= game.shop_scroll.size.y
 		or game.shop_panel.position.y < 0.0
 		or game.shop_panel.position.y + game.shop_panel.size.y > expected_content_height
 	):
@@ -218,9 +356,29 @@ func _run() -> void:
 		game.portrait_layout
 		or absf(game.camera.fov - 63.0) > 0.1
 		or game.hud_stats.columns != 3
+		or game.result_stats_grid.columns != 4
+		or game.result_actions.columns != 3
 		or game.shop_cards.columns != 4
+		or game.shop_medal_row.columns != 9
 	):
 		push_error("Landscape layout did not restore its wide-screen camera and grids")
+		quit(1)
+		return
+	game._show_shop()
+	game._handle_back_request()
+	if game.state != game.GameState.MENU:
+		push_error("Native back did not return from the shop to home")
+		quit(1)
+		return
+	game._start_run()
+	game._handle_back_request()
+	if game.state != game.GameState.PAUSED:
+		push_error("Native back did not pause a running game")
+		quit(1)
+		return
+	game._handle_back_request()
+	if game.state != game.GameState.RUNNING:
+		push_error("Native back did not resume a paused game")
 		quit(1)
 		return
 	game._apply_biome(1, true)
@@ -363,18 +521,16 @@ func _run() -> void:
 		return
 	game.player.run_clock = PI / 24.0
 	game.player._animate_run()
-	var left_stride_a: float = game.player.left_stride_pivot.rotation.x
-	var right_stride_a: float = game.player.right_stride_pivot.rotation.x
+	var first_stride_frame: int = game.player.run_leg_sprite.frame
 	game.player.run_clock += PI / 12.0
 	game.player._animate_run()
 	if (
-		left_stride_a * game.player.left_stride_pivot.rotation.x >= 0.0
-		or right_stride_a * game.player.right_stride_pivot.rotation.x >= 0.0
-		or left_stride_a * right_stride_a >= 0.0
-		or absf(left_stride_a) < 0.45
-		or absf(right_stride_a) < 0.45
+		first_stride_frame == game.player.run_leg_sprite.frame
+		or absi(first_stride_frame - game.player.run_leg_sprite.frame) < 2
+		or game.player.run_leg_sprite.frame < 0
+		or game.player.run_leg_sprite.frame > 5
 	):
-		push_error("Runner leg layers did not alternate through a readable stride")
+		push_error("Runner did not advance between opposite generated run-cycle poses")
 		quit(1)
 		return
 	game._clear_run_objects()
@@ -509,6 +665,21 @@ func _run() -> void:
 			game.player.duck()
 		await process_frame
 	game._start_run()
+	if (
+		game.neck_squawk_sound == null
+		or game.trip_yelp_sound == null
+		or game.neck_squawk_sound == game.trip_yelp_sound
+		or game.neck_squawk_sound.data == game.trip_yelp_sound.data
+		or game.neck_squawk_sound.get_meta("reaction", "") != "neck_flip"
+		or game.trip_yelp_sound.get_meta("reaction", "") != "trip"
+		or game.neck_squawk_sound.data.size() < 50000
+		or game.trip_yelp_sound.data.size() < 38000
+		or game._crash_sound_for("bar_flip") != game.neck_squawk_sound
+		or game._crash_sound_for("trip") != game.trip_yelp_sound
+	):
+		push_error("Trip and neck-flip collisions are missing their distinct dramatic bird calls")
+		quit(1)
+		return
 	game._trigger_hit(game.player, "wall")
 	for frame in range(120):
 		await process_frame
@@ -541,10 +712,18 @@ func _run() -> void:
 		return
 	print("SMOKE_OK state=%s distance=%.1f obstacles=%d feathers=%d" % [game.state, game.distance, game.obstacles.size(), game.run_feathers])
 	game.sfx_player.stop()
+	game.music_player.stop()
 	game.sfx_player.stream = null
+	game.music_player.stream = null
+	game.background_music = null
+	game.music_player.queue_free()
+	game.music_player = null
+	for i in range(4):
+		await process_frame
 	game.pickup_sound = null
-	game.honk_sound = null
-	game.trip_sound = null
+	game.neck_squawk_sound = null
+	game.trip_yelp_sound = null
+	game.spin_sound = null
 	game.success_sound = null
 	game.queue_free()
 	for i in range(12):

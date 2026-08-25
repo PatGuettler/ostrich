@@ -16,6 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="Ostrich Dash"
 run/main_scene="res://scenes/main.tscn"
+config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/generated/ostrich_dash_icon.png"
 
@@ -23,6 +24,8 @@ config/icon="res://assets/generated/ostrich_dash_icon.png"
 
 GameManager="*res://scripts/game_manager.gd"
 AdBarService="*res://autoload/ad_bar_service.gd"
+GodotPlayGameServices="*res://addons/GodotPlayGameServices/scripts/autoloads/godot_play_game_services.gd"
+LeaderboardService="*res://autoload/leaderboard_service.gd"
 
 [display]
 
@@ -36,7 +39,7 @@ window/handheld/orientation=6
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/admob/plugin.cfg")
+enabled=PackedStringArray("res://addons/admob/plugin.cfg", "res://addons/GodotPlayGameServices/plugin.cfg")
 
 [input]
 
@@ -85,6 +88,10 @@ pointing/emulate_mouse_from_touch=false
 [internationalization]
 
 locale/translations=PackedStringArray("res://addons/admob/gdscript/sample/translations/admob_sample.en.translation", "res://addons/admob/gdscript/sample/translations/admob_sample.pt_BR.translation", "res://addons/admob/gdscript/sample/translations/admob_sample.es.translation", "res://addons/admob/gdscript/sample/translations/admob_sample.zh_CN.translation", "res://addons/admob/gdscript/sample/translations/admob_sample.ja.translation")
+
+[ostrich_dash]
+
+play_games/longest_dash_leaderboard_id=""
 
 [rendering]
 

@@ -23,7 +23,62 @@ func _run() -> void:
 		await process_frame
 	var game = current_scene
 	game.audio_enabled = false
-	root.get_node("GameManager").save_enabled = false
+	var game_manager = root.get_node("GameManager")
+	game_manager.save_enabled = false
+	if "--powers-only" in OS.get_cmdline_user_args():
+		root.size = Vector2i(720, 1280)
+		DisplayServer.window_set_size(Vector2i(720, 1280))
+		for i in range(10):
+			await process_frame
+		game.mobile_mode = true
+		game.refresh_ad_layout()
+		game._start_run()
+		game._clear_run_objects()
+		var power_filenames := ["shield", "magnet", "slow_mo", "score_rush"]
+		for power_index in range(game_manager.POWERS.size()):
+			game_manager.selected_power = power_index
+			game.power_timer = 0.0
+			game.power_charge = 100.0
+			game._activate_power()
+			game.toast_label.visible = false
+			for i in range(8):
+				await process_frame
+			_save_frame("portrait_power_%s.png" % power_filenames[power_index])
+			game.power_timer = 0.0
+			game._stop_power_effect()
+		game.queue_free()
+		for i in range(6):
+			await process_frame
+		quit()
+		return
+	if "--shop-only" in OS.get_cmdline_user_args():
+		root.size = Vector2i(720, 1280)
+		DisplayServer.window_set_size(Vector2i(720, 1280))
+		for i in range(10):
+			await process_frame
+		game.refresh_ad_layout()
+		game._show_shop()
+		for i in range(6):
+			await process_frame
+		_save_frame("portrait_shop.png")
+		game.shop_scroll.scroll_vertical = 100000
+		for i in range(6):
+			await process_frame
+		_save_frame("portrait_shop_premium_colors.png")
+		root.size = Vector2i(1280, 720)
+		DisplayServer.window_set_size(Vector2i(1280, 720))
+		for i in range(10):
+			await process_frame
+		game.refresh_ad_layout()
+		game._show_shop()
+		for i in range(6):
+			await process_frame
+		_save_frame("shop.png")
+		game.queue_free()
+		for i in range(6):
+			await process_frame
+		quit()
+		return
 	_save_frame("menu_landscape.png")
 	game.mobile_mode = false
 	game._start_run()
@@ -90,7 +145,22 @@ func _run() -> void:
 	for i in range(4):
 		await process_frame
 	_save_frame("portrait_shop.png")
+	game.shop_scroll.scroll_vertical = 100000
+	for i in range(6):
+		await process_frame
+	_save_frame("portrait_shop_premium_colors.png")
 	game.shop_layer.visible = false
+	game.distance = 1085.0
+	game.score = 18740
+	game.run_feathers = 22
+	game.near_misses = 5
+	game.best_combo = 8
+	game.last_crash = "trip"
+	game._show_results()
+	for i in range(6):
+		await process_frame
+	_save_frame("portrait_results.png")
+	game.result_layer.visible = false
 	game.menu_layer.visible = false
 	game.player.visible = true
 	game.hud.visible = true
@@ -100,6 +170,11 @@ func _run() -> void:
 	for i in range(10):
 		await process_frame
 	game.refresh_ad_layout()
+	game.result_layer.visible = true
+	for i in range(4):
+		await process_frame
+	_save_frame("results_landscape.png")
+	game.result_layer.visible = false
 	game._apply_biome(0, true)
 	game._apply_biome(1)
 	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)

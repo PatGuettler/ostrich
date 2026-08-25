@@ -9,7 +9,10 @@ const BIOMES := [
 	{"name": "Night Games", "sky": Color("#07132e"), "track": Color("#28395e"), "ground": Color("#131a38"), "accent": Color("#7c5cff")},
 	{"name": "Desert Circuit", "sky": Color("#ef9d61"), "track": Color("#a94c39"), "ground": Color("#d98b4e"), "accent": Color("#ffe066")},
 	{"name": "Snow Games", "sky": Color("#9dd7ea"), "track": Color("#74a4bb"), "ground": Color("#e9f5f6"), "accent": Color("#f25f5c")},
-	{"name": "Jungle Track", "sky": Color("#163a34"), "track": Color("#74523b"), "ground": Color("#1f6b4e"), "accent": Color("#f6bd60")}
+	{"name": "Jungle Track", "sky": Color("#163a34"), "track": Color("#74523b"), "ground": Color("#1f6b4e"), "accent": Color("#f6bd60")},
+	{"name": "Candy Carnival", "sky": Color("#77cff5"), "track": Color("#f45b91"), "ground": Color("#f7c6dc"), "accent": Color("#ffe66d")},
+	{"name": "Volcano Valley", "sky": Color("#d85d55"), "track": Color("#211d27"), "ground": Color("#3a2533"), "accent": Color("#ff7b3d")},
+	{"name": "Cloud Kingdom", "sky": Color("#a8dcff"), "track": Color("#7fc8ef"), "ground": Color("#e8f5ff"), "accent": Color("#ffd875")},
 ]
 const LANES := [-2.8, 0.0, 2.8]
 const BIOME_DISTANCE := 225.0
@@ -23,8 +26,8 @@ const SPAWN_GAP_MAX := 38.0
 const SPAWN_GAP_RAMP_REDUCTION := 4.0
 const DOUBLE_OBSTACLE_DISTANCE := 240.0
 const DOUBLE_OBSTACLE_CHANCE := 0.26
-const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034]
-const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94]
+const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034, 0.0018, 0.0024, 0.0016]
+const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94, 0.86, 0.9, 0.82]
 const PRIVACY_POLICY_URL := "https://patguettler.github.io/privacy-policy.html"
 const DATA_DELETION_URL := "https://patguettler.github.io/privacy-policy.html#data-deletion"
 const BIOME_BACKDROP_PATHS := [
@@ -33,19 +36,38 @@ const BIOME_BACKDROP_PATHS := [
 	"res://assets/generated/night_games_vista.png",
 	"res://assets/generated/desert_circuit_vista.png",
 	"res://assets/generated/snow_games_vista.png",
-	"res://assets/generated/jungle_track_vista.png"
+	"res://assets/generated/jungle_track_vista.png",
+	"res://assets/generated/candy_carnival_vista.png",
+	"res://assets/generated/volcano_valley_vista.png",
+	"res://assets/generated/cloud_kingdom_vista.png",
 ]
 const RUNNER_ART_PATHS := [
 	"res://assets/generated/gameplay/runner_classic.png",
 	"res://assets/generated/gameplay/runner_midnight.png",
 	"res://assets/generated/gameplay/runner_golden.png",
-	"res://assets/generated/gameplay/runner_bubblegum.png"
+	"res://assets/generated/gameplay/runner_bubblegum.png",
+	"res://assets/generated/gameplay/runner_aurora.png",
+	"res://assets/generated/gameplay/runner_emerald.png",
+	"res://assets/generated/gameplay/runner_sunset.png",
+	"res://assets/generated/gameplay/runner_frost.png",
+	"res://assets/generated/gameplay/runner_celestial.png",
+	"res://assets/generated/gameplay/runner_rose_gold.png",
+	"res://assets/generated/gameplay/runner_electric_lime.png",
+	"res://assets/generated/gameplay/runner_royal_peacock.png",
 ]
 const RUNNER_GAMEPLAY_ART_PATHS := [
 	"res://assets/generated/gameplay/runner_classic_back.png",
 	"res://assets/generated/gameplay/runner_midnight_back.png",
 	"res://assets/generated/gameplay/runner_golden_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_back.png"
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
 ]
 const RIVAL_ART_PATH := "res://assets/generated/gameplay/rival_runner_back.png"
 const OBSTACLE_ATLAS_PATH := "res://assets/generated/gameplay/obstacle_atlas.png"
@@ -62,7 +84,10 @@ const SURFACE_PATHS := [
 	"res://assets/generated/gameplay/surfaces/hd/night_track_hd.png",
 	"res://assets/generated/gameplay/surfaces/hd/desert_clay_hd.png",
 	"res://assets/generated/gameplay/surfaces/hd/snow_pack_hd.png",
-	"res://assets/generated/gameplay/surfaces/hd/jungle_earth_hd.png"
+	"res://assets/generated/gameplay/surfaces/hd/jungle_earth_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/candy_rubber_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/volcano_rubber_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/cloud_rubber_hd.png",
 ]
 const OBSTACLE_CELLS := {"wall": 0, "bar": 1, "cone": 2, "drone": 3, "slip": 4}
 
@@ -90,12 +115,13 @@ var distance := 0.0
 var run_feathers := 0
 var near_misses := 0
 var combo := 1
+var best_combo := 1
 var score := 0
 var speed := 16.0
 var spawn_meter := 18.0
 var current_biome := 0
 var last_biome := -1
-var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5]
+var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 var biome_tour := 0
 var checkpoint_stage := 0
 var biome_transition_active := false
@@ -111,6 +137,10 @@ var transition_ground_material: ShaderMaterial
 var power_charge := 0.0
 var power_timer := 0.0
 var shield_active := false
+var power_effect_root: Node3D
+var power_effect_shell: MeshInstance3D
+var power_effect_rings: Array[MeshInstance3D] = []
+var power_effect_icons: Array[Sprite3D] = []
 var controls_reversed := false
 var slip_timer := 0.0
 var shake_time := 0.0
@@ -140,6 +170,7 @@ var menu_box: VBoxContainer
 var menu_logo: TextureRect
 var menu_tagline: Label
 var privacy_button: Button
+var music_toggle_button: Button
 var control_help_label: Label
 var menu_wallet: Label
 var loadout_skin_label: Label
@@ -147,6 +178,7 @@ var loadout_power_button: Button
 var daily_label: Label
 var start_button: Button
 var shop_button: Button
+var leaderboard_button: Button
 var hud: Control
 var hud_top_panel: PanelContainer
 var hud_margin: MarginContainer
@@ -164,19 +196,33 @@ var power_bar: ProgressBar
 var touch_controls: Control
 var result_layer: Control
 var result_panel: PanelContainer
+var result_margin: MarginContainer
+var result_box: VBoxContainer
 var result_title: Label
 var result_subtitle: Label
+var result_runner_portrait: TextureRect
 var result_medal_icon: TextureRect
+var result_medal_name: Label
+var result_stats_grid: GridContainer
+var result_distance_value: Label
+var result_score_value: Label
+var result_feather_value: Label
+var result_best_value: Label
 var result_stats: Label
 var result_bonus: Label
+var result_actions: GridContainer
+var result_retry_button: Button
+var result_home_button: Button
+var result_leaderboard_button: Button
 var shop_layer: Control
 var shop_panel: PanelContainer
 var shop_margin: MarginContainer
 var shop_box: VBoxContainer
 var shop_heading: Label
 var shop_wallet: Label
+var shop_scroll: ScrollContainer
 var shop_cards: GridContainer
-var shop_medal_row: HBoxContainer
+var shop_medal_row: GridContainer
 var shop_medals: Label
 var shop_back: Button
 var pause_layer: Control
@@ -185,9 +231,12 @@ var toast_label: Label
 var toast_time := 0.0
 
 var sfx_player: AudioStreamPlayer
+var music_player: AudioStreamPlayer
+var background_music: AudioStreamWAV
 var pickup_sound: AudioStreamWAV
-var honk_sound: AudioStreamWAV
-var trip_sound: AudioStreamWAV
+var neck_squawk_sound: AudioStreamWAV
+var trip_yelp_sound: AudioStreamWAV
+var spin_sound: AudioStreamWAV
 var success_sound: AudioStreamWAV
 var audio_enabled := true
 
@@ -265,6 +314,10 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_handle_back_request()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause"):
 		if state == GameState.RUNNING:
 			_pause_game()
@@ -282,6 +335,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.duck()
 	elif event.is_action_pressed("power_up"):
 		_activate_power()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_handle_back_request()
+
+func _handle_back_request() -> void:
+	match state:
+		GameState.RUNNING:
+			_pause_game()
+		GameState.PAUSED:
+			_resume_game()
+		GameState.SHOP, GameState.RESULTS, GameState.HIT:
+			_show_menu()
+		GameState.MENU:
+			# Keep the player in the app instead of accidentally closing it.
+			pass
 
 func _process_touch_gesture(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -341,6 +410,7 @@ func _start_run() -> void:
 	run_feathers = 0
 	near_misses = 0
 	combo = 1
+	best_combo = 1
 	score = 0
 	speed = 16.0
 	spawn_meter = 24.0
@@ -353,6 +423,7 @@ func _start_run() -> void:
 	power_charge = 0.0
 	power_timer = 0.0
 	shield_active = false
+	_stop_power_effect()
 	controls_reversed = false
 	slip_timer = 0.0
 	player.reset_player()
@@ -405,10 +476,110 @@ func _award_checkpoint(completed_tour: bool) -> void:
 	else:
 		_show_toast("CHECKPOINT!  +%d FEATHERS" % reward)
 
+func _build_power_effects() -> void:
+	power_effect_root = Node3D.new()
+	power_effect_root.name = "ActivePowerAura"
+	power_effect_root.visible = false
+	player.add_child(power_effect_root)
+
+	var shell_mesh := SphereMesh.new()
+	shell_mesh.radius = 0.5
+	shell_mesh.height = 1.0
+	shell_mesh.radial_segments = 32
+	shell_mesh.rings = 18
+	power_effect_shell = MeshInstance3D.new()
+	power_effect_shell.name = "ProtectivePowerBubble"
+	power_effect_shell.mesh = shell_mesh
+	power_effect_shell.position = Vector3(0.0, 2.55, 0.2)
+	power_effect_shell.scale = Vector3(3.55, 5.2, 2.15)
+	power_effect_shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	power_effect_root.add_child(power_effect_shell)
+
+	for ring_index in range(2):
+		var ring_mesh := TorusMesh.new()
+		ring_mesh.inner_radius = 0.465
+		ring_mesh.outer_radius = 0.5
+		ring_mesh.rings = 36
+		ring_mesh.ring_segments = 10
+		var ring := MeshInstance3D.new()
+		ring.name = "PowerOrbitRing%d" % (ring_index + 1)
+		ring.mesh = ring_mesh
+		ring.position = Vector3(0.0, 2.55, 0.34 + ring_index * 0.04)
+		ring.rotation_degrees.x = 90.0
+		ring.scale = Vector3(3.45 - ring_index * 0.38, 1.0, 4.75 - ring_index * 0.42)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		power_effect_root.add_child(ring)
+		power_effect_rings.append(ring)
+
+	for icon_index in range(3):
+		var icon := _sprite_3d(
+			power_effect_root,
+			_atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, 1),
+			Vector3.ZERO,
+			0.00225,
+			"OrbitingPowerBuddy%d" % (icon_index + 1)
+		)
+		icon.render_priority = 6
+		power_effect_icons.append(icon)
+
+func _power_aura_material(color: Color, alpha: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(color.r, color.g, color.b, alpha)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = 1.5
+	material.no_depth_test = true
+	material.render_priority = 4
+	return material
+
+func _start_power_effect() -> void:
+	var effect_colors := [Color("#4de9ff"), Color("#ff69b4"), Color("#918cff"), Color("#ffd85a")]
+	var effect_color: Color = effect_colors[clampi(GameManager.selected_power, 0, effect_colors.size() - 1)]
+	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
+	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if GameManager.selected_power == 0 else 0.065)
+	for ring in power_effect_rings:
+		ring.material_override = _power_aura_material(effect_color, 0.82)
+	for icon in power_effect_icons:
+		icon.texture = icon_texture
+		icon.modulate = Color.WHITE
+	power_effect_root.visible = true
+	_update_power_effect(0.0)
+
+func _stop_power_effect() -> void:
+	if is_instance_valid(power_effect_root):
+		power_effect_root.visible = false
+
+func _update_power_effect(_delta: float) -> void:
+	if power_timer <= 0.0 or state != GameState.RUNNING:
+		_stop_power_effect()
+		return
+	if not power_effect_root.visible:
+		_start_power_effect()
+	var pulse := 1.0 + sin(elapsed * 5.2) * 0.035
+	power_effect_shell.scale = Vector3(3.55, 5.2, 2.15) * pulse
+	power_effect_shell.rotation.y = elapsed * 0.42
+	for ring_index in range(power_effect_rings.size()):
+		var ring := power_effect_rings[ring_index]
+		ring.rotation.z = elapsed * (0.72 if ring_index == 0 else -0.94)
+		var ring_pulse := 1.0 + sin(elapsed * 4.4 + float(ring_index) * PI) * 0.045
+		ring.scale = Vector3(3.45 - ring_index * 0.38, 1.0, 4.75 - ring_index * 0.42) * ring_pulse
+	var fade := clampf(power_timer * 2.5, 0.0, 1.0)
+	for icon_index in range(power_effect_icons.size()):
+		var phase := elapsed * (1.55 + float(icon_index) * 0.08) + float(icon_index) * TAU / float(power_effect_icons.size())
+		var icon := power_effect_icons[icon_index]
+		icon.position = Vector3(cos(phase) * 2.0, 2.65 + sin(phase) * 1.72, 0.62 + sin(phase * 2.0) * 0.12)
+		var icon_scale := 0.9 + sin(elapsed * 5.0 + float(icon_index)) * 0.09
+		icon.scale = Vector3.ONE * icon_scale
+		icon.modulate.a = fade
+
 func _update_power(delta: float) -> void:
 	if power_timer > 0.0:
 		power_timer -= delta
 		if power_timer <= 0.0:
+			power_timer = 0.0
 			shield_active = false
 	if slip_timer > 0.0:
 		slip_timer -= delta
@@ -419,6 +590,7 @@ func _update_power(delta: float) -> void:
 			var node: Node3D = item.node
 			if is_instance_valid(node) and node.position.z > -18.0:
 				node.position.x = move_toward(node.position.x, player.position.x, delta * 10.0)
+	_update_power_effect(delta)
 
 func _activate_power() -> void:
 	if power_charge < 100.0 or power_timer > 0.0:
@@ -426,6 +598,7 @@ func _activate_power() -> void:
 		return
 	power_charge = 0.0
 	power_timer = 6.0
+	_start_power_effect()
 	match GameManager.selected_power:
 		0:
 			shield_active = true
@@ -680,6 +853,7 @@ func _obstacle_hits(kind: String) -> bool:
 
 func _clean_dodge(near: bool) -> void:
 	combo = mini(combo + 1, 9)
+	best_combo = maxi(best_combo, combo)
 	if near:
 		near_misses += 1
 	var charge_gain := 22.0
@@ -709,11 +883,15 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 	if shield_active:
 		shield_active = false
 		power_timer = 0.0
+		_stop_power_effect()
 		combo = 1
 		_spawn_puff(player.global_position + Vector3(0, 2.4, 0), Color("#9be7ff"), 12)
 		_show_toast("SHIELD SAVE!")
 		return
 	state = GameState.HIT
+	power_timer = 0.0
+	shield_active = false
+	_stop_power_effect()
 	shake_time = 0.75
 	if obstacle_kind in ["wall", "cone", "rival"]:
 		last_crash = "trip"
@@ -726,7 +904,7 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 		player.trigger_spin()
 	var puff_height := 0.65 if last_crash == "trip" else (4.0 if last_crash == "bar_flip" else 2.6)
 	_spawn_puff(player.global_position + Vector3(0, puff_height, 0), Color("#fff0cf"), 24)
-	_play_sound(trip_sound if last_crash == "trip" else honk_sound, 0.0)
+	_play_sound(_crash_sound_for(last_crash), 3.0 if last_crash == "bar_flip" else (2.0 if last_crash == "trip" else 0.0))
 	hud.visible = false
 	touch_controls.visible = false
 
@@ -746,7 +924,11 @@ func _on_crash_finished() -> void:
 
 func _show_results() -> void:
 	state = GameState.RESULTS
+	power_timer = 0.0
+	shield_active = false
+	_stop_power_effect()
 	last_result = GameManager.finish_run(distance, run_feathers, current_biome)
+	LeaderboardService.submit_longest_dash(int(distance))
 	if last_result.new_best:
 		result_title.text = "NEW PERSONAL BEST!"
 	elif last_crash == "trip":
@@ -754,16 +936,22 @@ func _show_results() -> void:
 	elif last_crash == "bar_flip":
 		result_title.text = "OVER THE BAR!"
 	else:
-		result_title.text = "WHAT A SPIN!"
+		result_title.text = "WHAT A DASH!"
 	result_subtitle.text = {
-		"trip": "TOE CLIP → FORWARD TUMBLE",
-		"bar_flip": "NECK CATCH → FEET UP → FLIP DOWN",
-	}.get(last_crash, "THE NECK-WRAP PINWHEEL")
-	result_stats.text = "%dm  •  %d pts\n%d feathers  •  %d near-misses\nBest: %dm  •  %s medal here" % [int(distance), score, run_feathers, near_misses, int(GameManager.best_distance), GameManager.medal_for_biome(current_biome)]
-	result_bonus.text = "+25 DAILY CHALLENGE BONUS" if last_result.daily_bonus > 0 else "Clean-dodge combo peaked at %d×" % combo
+		"trip": "THOSE SPEEDY FEET GOT TANGLED!",
+		"bar_flip": "FEET UP, FEATHERS FLYING!",
+	}.get(last_crash, "A WILD AND WOBBLY FINISH!")
+	result_runner_portrait.texture = load(RUNNER_ART_PATHS[GameManager.selected_skin])
+	result_distance_value.text = "%d m" % int(distance)
+	result_score_value.text = "%d" % score
+	result_feather_value.text = "+%d" % run_feathers
+	result_best_value.text = "%d m" % int(GameManager.best_distance)
+	result_bonus.text = "DAILY CHALLENGE COMPLETE!  +25 FEATHERS" if last_result.daily_bonus > 0 else "BEST DODGE STREAK  •  %d×     NEAR MISSES  •  %d" % [best_combo, near_misses]
 	var earned_medal := GameManager.medal_for_biome(current_biome)
-	result_medal_icon.visible = earned_medal != "—"
+	result_medal_icon.visible = true
 	result_medal_icon.texture = _atlas_texture(EFFECTS_MEDALS_ATLAS_PATH, 3, 2, _medal_cell(earned_medal))
+	result_medal_icon.modulate.a = 0.32 if earned_medal == "—" else 1.0
+	result_medal_name.text = "BRONZE AT 300m" if earned_medal == "—" else "%s • %s" % [BIOMES[current_biome].name.to_upper(), earned_medal]
 	result_medal_icon.tooltip_text = "%s — %s" % [BIOMES[current_biome].name, earned_medal]
 	result_layer.visible = true
 	_play_sound(success_sound, -4.0)
@@ -1013,15 +1201,21 @@ func _rebuild_props(index: int) -> void:
 	# dressing. Extra foreground plates made those details appear twice.
 	if index == 0:
 		return
+	var prop_cells := [0, 1, 2, 3, 4, 5, 1, 3, 0]
+	var prop_tints := [
+		Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE,
+		Color("#ffd8ef"), Color("#ffad72"), Color("#dff5ff"),
+	]
 	var prop_number := 0
 	for z in range(-82, 20, 26):
 		# Stagger one cluster at a time instead of mirroring identical plates on
 		# both sides. This keeps parallax without creating a doubled-image look.
 		var side := -1.0 if posmod(prop_number + index, 2) == 0 else 1.0
 		var x: float = side * randf_range(8.6, 10.2)
-		var prop := _sprite_3d(prop_root, _atlas_texture(BIOME_PROP_ATLAS_PATH, 3, 2, index), Vector3(x, 2.55, float(z)), randf_range(0.0102, 0.0115), "%sPropCluster" % BIOMES[index].name.replace(" ", ""))
+		var prop := _sprite_3d(prop_root, _atlas_texture(BIOME_PROP_ATLAS_PATH, 3, 2, prop_cells[index]), Vector3(x, 2.55, float(z)), randf_range(0.0102, 0.0115), "%sPropCluster" % BIOMES[index].name.replace(" ", ""))
 		prop.flip_h = side > 0.0
-		prop.modulate = Color(1.0, 1.0, 1.0, randf_range(0.94, 1.0))
+		prop.modulate = prop_tints[index]
+		prop.modulate.a = randf_range(0.94, 1.0)
 		prop_number += 1
 
 func _build_game_viewport() -> void:
@@ -1096,15 +1290,19 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(daily_label, 26)
 		_set_font_size(start_button, 40)
 		_set_font_size(shop_button, 32)
+		_set_font_size(leaderboard_button, 32)
 		_set_font_size(control_help_label, 23)
 		_set_font_size(privacy_button, 20)
+		_set_font_size(music_toggle_button, 20)
 		loadout_power_button.custom_minimum_size.y = 72.0
 		daily_label.custom_minimum_size.y = 60.0
 		start_button.custom_minimum_size.y = 126.0
 		shop_button.custom_minimum_size.y = 92.0
+		leaderboard_button.custom_minimum_size.y = 92.0
 		control_help_label.custom_minimum_size.y = 48.0
 		privacy_button.custom_minimum_size.y = 48.0
-		_position_center_panel(result_panel, Vector2(minf(540.0, content_size.x - 24.0), minf(560.0, content_size.y - 32.0)))
+		music_toggle_button.custom_minimum_size.y = 48.0
+		_position_center_panel(result_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1320.0, content_size.y - 96.0)))
 		_position_center_panel(shop_panel, Vector2(minf(1120.0, content_size.x - 64.0), minf(1640.0, content_size.y - 96.0)))
 		_position_center_panel(pause_panel, Vector2(minf(440.0, content_size.x - 32.0), 340.0))
 		hud_top_panel.offset_left = 18.0
@@ -1152,15 +1350,19 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(daily_label, 15)
 		_set_font_size(start_button, 25)
 		_set_font_size(shop_button, 17)
+		_set_font_size(leaderboard_button, 17)
 		_set_font_size(control_help_label, 14)
 		_set_font_size(privacy_button, 14)
+		_set_font_size(music_toggle_button, 14)
 		loadout_power_button.custom_minimum_size.y = 54.0
 		daily_label.custom_minimum_size.y = 46.0
 		start_button.custom_minimum_size.y = 66.0
 		shop_button.custom_minimum_size.y = 50.0
+		leaderboard_button.custom_minimum_size.y = 50.0
 		control_help_label.custom_minimum_size.y = 34.0
 		privacy_button.custom_minimum_size.y = 32.0
-		_position_center_panel(result_panel, Vector2(520.0, 500.0))
+		music_toggle_button.custom_minimum_size.y = 32.0
+		_position_center_panel(result_panel, Vector2(minf(1040.0, content_size.x - 36.0), minf(600.0, content_size.y - 28.0)))
 		_position_center_panel(shop_panel, Vector2(minf(980.0, content_size.x - 32.0), minf(620.0, content_size.y - 24.0)))
 		_position_center_panel(pause_panel, Vector2(420.0, 320.0))
 		hud_top_panel.offset_left = 26.0
@@ -1190,6 +1392,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(toast_label, 20)
 		_position_top_center(toast_label, 560.0, 196.0, 58.0)
 	_apply_shop_layout()
+	_apply_result_layout()
 
 	if mobile_mode:
 		control_help_label.text = "SWIPE TO MOVE  •  SWIPE UP TO JUMP  •  SWIPE DOWN TO DUCK"
@@ -1212,8 +1415,11 @@ func _apply_shop_layout() -> void:
 		shop_cards.columns = 2
 		shop_cards.add_theme_constant_override("h_separation", 24)
 		shop_cards.add_theme_constant_override("v_separation", 24)
-		shop_cards.custom_minimum_size.y = 1010.0
-		shop_medal_row.add_theme_constant_override("separation", 16)
+		shop_scroll.custom_minimum_size.y = 1010.0
+		shop_cards.custom_minimum_size.y = 0.0
+		shop_medal_row.columns = 5
+		shop_medal_row.add_theme_constant_override("h_separation", 14)
+		shop_medal_row.add_theme_constant_override("v_separation", 8)
 		shop_medal_row.custom_minimum_size.y = 116.0
 		_set_font_size(shop_heading, 42)
 		_set_font_size(shop_wallet, 28)
@@ -1231,8 +1437,11 @@ func _apply_shop_layout() -> void:
 		shop_cards.columns = 4
 		shop_cards.add_theme_constant_override("h_separation", 12)
 		shop_cards.add_theme_constant_override("v_separation", 12)
-		shop_cards.custom_minimum_size.y = 284.0
-		shop_medal_row.add_theme_constant_override("separation", 12)
+		shop_scroll.custom_minimum_size.y = 284.0
+		shop_cards.custom_minimum_size.y = 0.0
+		shop_medal_row.columns = 9
+		shop_medal_row.add_theme_constant_override("h_separation", 8)
+		shop_medal_row.add_theme_constant_override("v_separation", 0)
 		shop_medal_row.custom_minimum_size.y = 52.0
 		_set_font_size(shop_heading, 28)
 		_set_font_size(shop_wallet, 16)
@@ -1245,6 +1454,64 @@ func _apply_shop_layout() -> void:
 		_style_shop_card(card)
 	for medal_bubble in shop_medal_row.get_children():
 		medal_bubble.custom_minimum_size = Vector2(112, 104) if portrait_layout else Vector2(62, 48)
+
+func _apply_result_layout() -> void:
+	if not is_instance_valid(result_panel):
+		return
+	if portrait_layout:
+		result_margin.add_theme_constant_override("margin_left", 44)
+		result_margin.add_theme_constant_override("margin_right", 44)
+		result_margin.add_theme_constant_override("margin_top", 40)
+		result_margin.add_theme_constant_override("margin_bottom", 40)
+		result_box.add_theme_constant_override("separation", 18)
+		result_title.custom_minimum_size.y = 112.0
+		result_subtitle.custom_minimum_size.y = 58.0
+		_set_font_size(result_title, 44)
+		_set_font_size(result_subtitle, 25)
+		result_runner_portrait.custom_minimum_size = Vector2(360, 330)
+		result_medal_icon.custom_minimum_size = Vector2(250, 220)
+		_set_font_size(result_medal_name, 25)
+		result_stats_grid.columns = 2
+		result_stats_grid.add_theme_constant_override("h_separation", 20)
+		result_stats_grid.add_theme_constant_override("v_separation", 20)
+		_style_result_stat_cards(true)
+		result_bonus.custom_minimum_size.y = 78.0
+		_set_font_size(result_bonus, 25)
+		result_actions.columns = 1
+		result_actions.add_theme_constant_override("v_separation", 16)
+		result_retry_button.custom_minimum_size.y = 108.0
+		result_home_button.custom_minimum_size.y = 78.0
+		result_leaderboard_button.custom_minimum_size.y = 78.0
+		_set_font_size(result_retry_button, 34)
+		_set_font_size(result_home_button, 25)
+		_set_font_size(result_leaderboard_button, 25)
+	else:
+		result_margin.add_theme_constant_override("margin_left", 34)
+		result_margin.add_theme_constant_override("margin_right", 34)
+		result_margin.add_theme_constant_override("margin_top", 24)
+		result_margin.add_theme_constant_override("margin_bottom", 24)
+		result_box.add_theme_constant_override("separation", 8)
+		result_title.custom_minimum_size.y = 62.0
+		result_subtitle.custom_minimum_size.y = 30.0
+		_set_font_size(result_title, 31)
+		_set_font_size(result_subtitle, 17)
+		result_runner_portrait.custom_minimum_size = Vector2(250, 176)
+		result_medal_icon.custom_minimum_size = Vector2(150, 134)
+		_set_font_size(result_medal_name, 16)
+		result_stats_grid.columns = 4
+		result_stats_grid.add_theme_constant_override("h_separation", 12)
+		result_stats_grid.add_theme_constant_override("v_separation", 8)
+		_style_result_stat_cards(false)
+		result_bonus.custom_minimum_size.y = 42.0
+		_set_font_size(result_bonus, 16)
+		result_actions.columns = 3
+		result_actions.add_theme_constant_override("h_separation", 14)
+		result_retry_button.custom_minimum_size.y = 62.0
+		result_home_button.custom_minimum_size.y = 62.0
+		result_leaderboard_button.custom_minimum_size.y = 62.0
+		_set_font_size(result_retry_button, 24)
+		_set_font_size(result_home_button, 18)
+		_set_font_size(result_leaderboard_button, 18)
 
 func _position_center_panel(panel: Control, panel_size: Vector2) -> void:
 	if not is_instance_valid(panel):
@@ -1316,6 +1583,7 @@ func _build_world() -> void:
 	player = DashPlayer.new()
 	world.add_child(player)
 	player.crash_finished.connect(_on_crash_finished)
+	_build_power_effects()
 	_rebuild_props(0)
 
 func _build_stadium_art() -> void:
@@ -1363,7 +1631,9 @@ func _build_biome_backdrops() -> void:
 func _shuffle_biome_sequence() -> void:
 	# Always open in the signature stadium, then tour every other unique biome
 	# exactly once in a fresh order before the sequence repeats.
-	var remaining: Array[int] = [1, 2, 3, 4, 5]
+	var remaining: Array[int] = []
+	for biome_index in range(1, BIOMES.size()):
+		remaining.append(biome_index)
 	remaining.shuffle()
 	biome_sequence = [0]
 	biome_sequence.append_array(remaining)
@@ -1395,11 +1665,90 @@ func _update_particles(delta: float) -> void:
 
 func _build_audio() -> void:
 	sfx_player = AudioStreamPlayer.new()
+	sfx_player.name = "SoundEffectsPlayer"
 	add_child(sfx_player)
 	pickup_sound = _synth_sound(0.18, 720.0, 1120.0, "sine")
-	honk_sound = _synth_sound(0.72, 130.0, 72.0, "honk")
-	trip_sound = _synth_sound(0.42, 105.0, 54.0, "thud")
+	neck_squawk_sound = _synth_bird_reaction("neck_flip")
+	trip_yelp_sound = _synth_bird_reaction("trip")
+	spin_sound = _synth_sound(0.72, 130.0, 72.0, "honk")
 	success_sound = _synth_sound(0.55, 420.0, 880.0, "sparkle")
+	music_player = AudioStreamPlayer.new()
+	music_player.name = "BackgroundMusicPlayer"
+	music_player.volume_db = -15.0
+	add_child(music_player)
+	background_music = _synth_background_music()
+	music_player.stream = background_music
+	_update_music_button()
+	if GameManager.music_enabled and DisplayServer.get_name() != "headless":
+		music_player.play()
+
+func _synth_background_music() -> AudioStreamWAV:
+	# An original, compact four-chord marimba loop generated at startup keeps the
+	# APK self-contained and avoids licensing a third-party recording.
+	var sample_rate := 22050
+	var bpm := 132.0
+	var total_beats := 16.0
+	var duration := total_beats * 60.0 / bpm
+	var count := int(duration * sample_rate)
+	var melody: Array[int] = [
+		72, 76, 79, 76, 74, 77, 81, 77,
+		72, 76, 79, 83, 81, 79, 76, 74,
+		72, 77, 81, 77, 74, 79, 83, 79,
+		71, 74, 79, 74, 72, 76, 79, 83,
+	]
+	var chord_roots: Array[int] = [48, 45, 53, 55]
+	var bytes := PackedByteArray()
+	bytes.resize(count * 2)
+	for i in count:
+		var seconds := float(i) / float(sample_rate)
+		var beat := seconds * bpm / 60.0
+		var melody_step := int(floor(beat * 2.0)) % melody.size()
+		var step_time := fmod(beat * 2.0, 1.0)
+		var melody_hz := 440.0 * pow(2.0, (float(melody[melody_step]) - 69.0) / 12.0)
+		var pluck_envelope := exp(-5.4 * step_time)
+		var pluck := (sin(TAU * melody_hz * seconds) * 0.72 + sin(TAU * melody_hz * 2.01 * seconds) * 0.28) * pluck_envelope
+		var chord_index := int(floor(beat / 4.0)) % chord_roots.size()
+		var root_note := chord_roots[chord_index]
+		var root_hz := 440.0 * pow(2.0, (float(root_note) - 69.0) / 12.0)
+		var bass_time := fmod(beat, 1.0)
+		var bass := sin(TAU * root_hz * seconds) * exp(-3.4 * bass_time)
+		var third_hz := root_hz * pow(2.0, 4.0 / 12.0)
+		var fifth_hz := root_hz * pow(2.0, 7.0 / 12.0)
+		var pad := (sin(TAU * root_hz * 2.0 * seconds) + sin(TAU * third_hz * 2.0 * seconds) + sin(TAU * fifth_hz * 2.0 * seconds)) / 3.0
+		var kick_time := fmod(beat, 1.0)
+		var kick := sin(TAU * (72.0 - kick_time * 24.0) * seconds) * exp(-10.0 * kick_time)
+		var half_beat := fmod(beat * 2.0, 1.0)
+		var sparkle_noise := sin(float(i) * 12.9898) * sin(float(i) * 0.071)
+		var sparkle := sparkle_noise * exp(-14.0 * half_beat) * (0.45 if melody_step % 2 == 1 else 0.16)
+		var mix := pluck * 0.38 + bass * 0.2 + pad * 0.12 + kick * 0.17 + sparkle * 0.08
+		var edge_fade := clampf(minf(seconds, duration - seconds) / 0.035, 0.0, 1.0)
+		var sample := clampi(int(mix * edge_fade * 24500.0), -32768, 32767)
+		bytes[i * 2] = sample & 0xff
+		bytes[i * 2 + 1] = (sample >> 8) & 0xff
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = count
+	stream.data = bytes
+	return stream
+
+func _toggle_music() -> void:
+	GameManager.set_music_enabled(not GameManager.music_enabled)
+	if GameManager.music_enabled:
+		if DisplayServer.get_name() != "headless" and not music_player.playing:
+			music_player.play()
+	else:
+		music_player.stop()
+	_update_music_button()
+
+func _update_music_button() -> void:
+	if not is_instance_valid(music_toggle_button):
+		return
+	music_toggle_button.text = "♫  MUSIC ON" if GameManager.music_enabled else "♫  MUSIC OFF"
+	music_toggle_button.modulate = Color.WHITE if GameManager.music_enabled else Color(0.65, 0.72, 0.78, 1.0)
 
 func _synth_sound(duration: float, start_hz: float, end_hz: float, style: String) -> AudioStreamWAV:
 	var sample_rate := 22050
@@ -1428,6 +1777,81 @@ func _synth_sound(duration: float, start_hz: float, end_hz: float, style: String
 	stream.stereo = false
 	stream.data = bytes
 	return stream
+
+func _synth_bird_reaction(reaction: String) -> AudioStreamWAV:
+	# Original layered vocal effects: a fast frequency sweep supplies the bird
+	# call, noisy harmonics add the raspy chicken quality, and a low impact layer
+	# makes each collision feel substantial on phone speakers.
+	var sample_rate := 22050
+	var duration := 1.18 if reaction == "neck_flip" else 0.92
+	var count := int(duration * sample_rate)
+	var bytes := PackedByteArray()
+	bytes.resize(count * 2)
+	var phase := 0.0
+	for i in count:
+		var seconds := float(i) / float(sample_rate)
+		var t := float(i) / float(count)
+		var frequency: float
+		var voice_envelope: float
+		var voice: float
+		var impact: float
+		var deterministic_noise := sin(float(i) * 12.9898 + 0.31) * sin(float(i) * 0.071 + 1.7)
+		if reaction == "neck_flip":
+			# "BA-KAW-WAAAH!": a sharp startled rise followed by a long falling cry.
+			var first_call_t := clampf(t / 0.28, 0.0, 1.0)
+			var long_call_t := clampf((t - 0.24) / 0.76, 0.0, 1.0)
+			frequency = lerpf(510.0, 1040.0, first_call_t)
+			if t >= 0.24:
+				frequency = lerpf(930.0, 185.0, pow(long_call_t, 0.72))
+			frequency += sin(TAU * 24.0 * seconds) * (70.0 * (1.0 - t))
+			var first_burst := sin(PI * first_call_t) if t < 0.28 else 0.0
+			var long_burst := sin(PI * long_call_t) if t >= 0.24 else 0.0
+			voice_envelope = maxf(first_burst, long_burst * 0.92) * (1.0 - t * 0.12)
+			phase += TAU * frequency / float(sample_rate)
+			voice = (
+				sin(phase) * 0.46
+				+ sin(phase * 2.03) * 0.28
+				+ sin(phase * 3.97) * 0.14
+				+ deterministic_noise * 0.18
+			) * voice_envelope
+			impact = sin(TAU * lerpf(118.0, 54.0, t) * seconds) * exp(-19.0 * t) * 0.55
+		else:
+			# "BWAAK-uk-uk!": a falling alarm call with two short stumbling chirps.
+			frequency = lerpf(780.0, 165.0, pow(t, 0.58))
+			frequency += sin(TAU * 18.0 * seconds) * 58.0
+			var main_cry := sin(PI * clampf(t / 0.62, 0.0, 1.0)) if t < 0.62 else 0.0
+			var chirp_one := sin(PI * clampf((t - 0.58) / 0.18, 0.0, 1.0)) if t >= 0.58 and t < 0.76 else 0.0
+			var chirp_two := sin(PI * clampf((t - 0.75) / 0.2, 0.0, 1.0)) if t >= 0.75 else 0.0
+			voice_envelope = maxf(main_cry, maxf(chirp_one * 0.72, chirp_two * 0.56))
+			phase += TAU * frequency / float(sample_rate)
+			voice = (
+				sin(phase) * 0.5
+				+ sin(phase * 1.91) * 0.23
+				+ sin(phase * 3.08) * 0.12
+				+ deterministic_noise * 0.15
+			) * voice_envelope
+			var thud_time := clampf(t / 0.24, 0.0, 1.0)
+			impact = sin(TAU * lerpf(96.0, 42.0, thud_time) * seconds) * exp(-15.0 * t) * 0.72
+		var edge_fade := clampf(minf(seconds, duration - seconds) / 0.012, 0.0, 1.0)
+		var sample := clampi(int((voice * 0.82 + impact) * edge_fade * 24500.0), -32768, 32767)
+		bytes[i * 2] = sample & 0xff
+		bytes[i * 2 + 1] = (sample >> 8) & 0xff
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.data = bytes
+	stream.set_meta("reaction", reaction)
+	return stream
+
+func _crash_sound_for(crash_kind: String) -> AudioStreamWAV:
+	match crash_kind:
+		"trip":
+			return trip_yelp_sound
+		"bar_flip":
+			return neck_squawk_sound
+		_:
+			return spin_sound
 
 func _play_sound(stream: AudioStream, volume_db: float) -> void:
 	if not audio_enabled:
@@ -1622,19 +2046,40 @@ func _build_ui() -> void:
 	start_button.custom_minimum_size.y = 66
 	start_button.pressed.connect(_start_run)
 	menu_box.add_child(start_button)
+	var discovery_row := HBoxContainer.new()
+	discovery_row.name = "DiscoveryButtons"
+	discovery_row.add_theme_constant_override("separation", 12)
+	menu_box.add_child(discovery_row)
 	shop_button = _button("CUSTOMIZE", Color("#17385d"), Color("#5ecfda"), 17)
+	shop_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_button.pressed.connect(_show_shop)
-	menu_box.add_child(shop_button)
+	discovery_row.add_child(shop_button)
+	leaderboard_button = _button("GLOBAL SCORES", Color("#55378a"), Color("#c69aff"), 17)
+	leaderboard_button.name = "GlobalScoresButton"
+	leaderboard_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	leaderboard_button.pressed.connect(_show_global_scores)
+	discovery_row.add_child(leaderboard_button)
 	control_help_label = _label("ARROW KEYS TO MOVE  •  SPACE TO JUMP  •  E FOR POWER", 14, Color("#c8d9e9"))
 	control_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	control_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	control_help_label.custom_minimum_size.y = 34
 	menu_box.add_child(control_help_label)
+	var settings_row := HBoxContainer.new()
+	settings_row.name = "MenuSettingsRow"
+	settings_row.add_theme_constant_override("separation", 12)
+	menu_box.add_child(settings_row)
+	music_toggle_button = _button("♫  MUSIC ON", Color("#16586b"), Color("#62e9db"), 14)
+	music_toggle_button.name = "MusicToggleButton"
+	music_toggle_button.tooltip_text = "Turn background music on or off"
+	music_toggle_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	music_toggle_button.pressed.connect(_toggle_music)
+	settings_row.add_child(music_toggle_button)
 	privacy_button = _button("PRIVACY & DATA", Color(0.025, 0.11, 0.18, 0.72), Color(0.45, 0.9, 0.87, 0.48), 14)
 	privacy_button.name = "PrivacyAndDataButton"
 	privacy_button.tooltip_text = "Privacy policy and data-deletion instructions"
+	privacy_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	privacy_button.pressed.connect(_open_privacy_policy)
-	menu_box.add_child(privacy_button)
+	settings_row.add_child(privacy_button)
 
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1685,7 +2130,7 @@ func _build_ui() -> void:
 	goal_margin.add_child(goal_box)
 	var goal_header := HBoxContainer.new()
 	goal_box.add_child(goal_header)
-	goal_label = _label("TOUR 1  •  STAGE 1 OF 6", 16, Color("#ffe7a3"))
+	goal_label = _label("TOUR 1  •  STAGE 1 OF 9", 16, Color("#ffe7a3"))
 	goal_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_set_bold(goal_label)
 	goal_header.add_child(goal_label)
@@ -1747,36 +2192,119 @@ func _build_ui() -> void:
 	ui_content_root.add_child(touch_controls)
 
 	result_layer = _modal_layer(ui_content_root)
-	result_panel = _center_panel(result_layer, Vector2(520, 500))
-	var result_box := _modal_box(result_panel)
-	result_title = _label("WHAT A SPIN!", 34, Color("#ffd166"))
+	result_panel = _center_panel(result_layer, Vector2(1040, 680))
+	var result_panel_style := _panel_style(Color("#fff3d8"), Color("#35d5c5"), 5, 46)
+	result_panel_style.shadow_color = Color(0.02, 0.02, 0.12, 0.68)
+	result_panel_style.shadow_size = 28
+	result_panel_style.shadow_offset = Vector2(0, 10)
+	result_panel.add_theme_stylebox_override("panel", result_panel_style)
+	result_box = _modal_box(result_panel)
+	result_box.name = "CelebrationResults"
+	result_margin = result_box.get_parent() as MarginContainer
+	result_title = _label("WHAT A DASH!", 31, Color.WHITE)
+	result_title.name = "ResultTitleBubble"
 	result_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_title.add_theme_stylebox_override("normal", _panel_style(Color("#ff5c70"), Color("#ffbc53"), 4, 30))
+	_set_bold(result_title)
 	result_box.add_child(result_title)
-	result_subtitle = _label("THE NECK-WRAP PINWHEEL", 13, Color("#79f2e8"))
+	result_subtitle = _label("FEATHERS FLEW—WHAT A FINISH!", 17, Color("#244766"))
 	result_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_subtitle.add_theme_constant_override("outline_size", 0)
+	_set_bold(result_subtitle)
 	result_box.add_child(result_subtitle)
+	var result_hero := HBoxContainer.new()
+	result_hero.name = "RunnerAndMedalCelebration"
+	result_hero.alignment = BoxContainer.ALIGNMENT_CENTER
+	result_hero.add_theme_constant_override("separation", 20)
+	result_box.add_child(result_hero)
+	var runner_bubble := PanelContainer.new()
+	runner_bubble.name = "ResultRunnerBubble"
+	runner_bubble.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var runner_style := _panel_style(Color("#d9fbf6"), Color("#25c7bd"), 4, 36)
+	runner_style.shadow_color = Color(0.12, 0.08, 0.2, 0.22)
+	runner_style.shadow_size = 10
+	runner_style.shadow_offset = Vector2(0, 6)
+	runner_bubble.add_theme_stylebox_override("panel", runner_style)
+	result_hero.add_child(runner_bubble)
+	result_runner_portrait = TextureRect.new()
+	result_runner_portrait.name = "ResultRunnerPortrait"
+	result_runner_portrait.texture = load(RUNNER_ART_PATHS[0])
+	result_runner_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	result_runner_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	result_runner_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	runner_bubble.add_child(result_runner_portrait)
+	var medal_bubble := PanelContainer.new()
+	medal_bubble.name = "ResultMedalBubble"
+	medal_bubble.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var medal_style := _panel_style(Color("#fff0bd"), Color("#ffb84d"), 4, 36)
+	medal_style.shadow_color = Color(0.12, 0.08, 0.2, 0.22)
+	medal_style.shadow_size = 10
+	medal_style.shadow_offset = Vector2(0, 6)
+	medal_bubble.add_theme_stylebox_override("panel", medal_style)
+	result_hero.add_child(medal_bubble)
+	var medal_box := VBoxContainer.new()
+	medal_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	medal_bubble.add_child(medal_box)
+	var prize_label := _label("BIOME BADGE", 15, Color("#9a5a24"))
+	prize_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	prize_label.add_theme_constant_override("outline_size", 0)
+	_set_bold(prize_label)
+	medal_box.add_child(prize_label)
 	result_medal_icon = TextureRect.new()
 	result_medal_icon.name = "EarnedMedalArt"
-	result_medal_icon.custom_minimum_size = Vector2(94, 82)
+	result_medal_icon.custom_minimum_size = Vector2(150, 134)
 	result_medal_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	result_medal_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	result_medal_icon.texture = _atlas_texture(EFFECTS_MEDALS_ATLAS_PATH, 3, 2, 3)
 	result_medal_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	result_box.add_child(result_medal_icon)
-	result_stats = _label("", 21, Color.WHITE)
-	result_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_stats.custom_minimum_size.y = 122
+	medal_box.add_child(result_medal_icon)
+	result_medal_name = _label("KEEP DASHING!", 16, Color("#6d3b22"))
+	result_medal_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_medal_name.add_theme_constant_override("outline_size", 0)
+	_set_bold(result_medal_name)
+	medal_box.add_child(result_medal_name)
+	result_stats_grid = GridContainer.new()
+	result_stats_grid.name = "ResultStatCards"
+	result_stats_grid.columns = 4
+	result_stats_grid.add_theme_constant_override("h_separation", 12)
+	result_box.add_child(result_stats_grid)
+	result_distance_value = _result_stat_card(result_stats_grid, "DISTANCE", "0 m", Color("#55cbed"))
+	result_score_value = _result_stat_card(result_stats_grid, "SCORE", "0", Color("#8e75ef"))
+	result_feather_value = _result_stat_card(result_stats_grid, "FEATHERS", "0", Color("#e2ae35"))
+	result_best_value = _result_stat_card(result_stats_grid, "PERSONAL BEST", "0 m", Color("#ff6f9f"))
+	result_stats = _label("", 1, Color.TRANSPARENT)
+	result_stats.visible = false
 	result_box.add_child(result_stats)
-	result_bonus = _label("", 15, Color("#ffe89a"))
+	result_bonus = _label("BEST DODGE STREAK  •  1×", 16, Color("#28506a"))
 	result_bonus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_bonus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_bonus.add_theme_constant_override("outline_size", 0)
+	result_bonus.add_theme_stylebox_override("normal", _panel_style(Color("#d9fbf6"), Color("#32cabb"), 3, 24))
+	_set_bold(result_bonus)
 	result_box.add_child(result_bonus)
-	var retry := _button("RUN AGAIN", Color("#ff654f"), Color("#ffb34b"), 21)
-	retry.custom_minimum_size.y = 58
-	retry.pressed.connect(_start_run)
-	result_box.add_child(retry)
-	var home := _button("BACK TO HOME", Color("#263f68"), Color("#5c7cbd"), 16)
-	home.pressed.connect(_show_menu)
-	result_box.add_child(home)
+	result_actions = GridContainer.new()
+	result_actions.name = "ResultActions"
+	result_actions.columns = 2
+	result_actions.add_theme_constant_override("h_separation", 14)
+	result_box.add_child(result_actions)
+	result_retry_button = _button("RUN AGAIN", Color("#ff5c5c"), Color("#ffd166"), 24)
+	result_retry_button.name = "RunAgainButton"
+	result_retry_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	result_retry_button.custom_minimum_size.y = 62
+	result_retry_button.pressed.connect(_start_run)
+	result_actions.add_child(result_retry_button)
+	result_home_button = _button("BACK TO HOME", Color("#1baeb1"), Color("#78eee0"), 18)
+	result_home_button.name = "ResultHomeButton"
+	result_home_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	result_home_button.pressed.connect(_show_menu)
+	result_actions.add_child(result_home_button)
+	result_leaderboard_button = _button("GLOBAL SCORES", Color("#55378a"), Color("#c69aff"), 18)
+	result_leaderboard_button.name = "ResultGlobalScoresButton"
+	result_leaderboard_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	result_leaderboard_button.pressed.connect(_show_global_scores)
+	result_actions.add_child(result_leaderboard_button)
 
 	shop_layer = _modal_layer(ui_content_root)
 	shop_panel = _center_panel(shop_layer, Vector2(980, 620))
@@ -1801,16 +2329,25 @@ func _build_ui() -> void:
 	shop_wallet.add_theme_stylebox_override("normal", _panel_style(Color("#d8fbf4"), Color("#66dccd"), 2, 18))
 	_set_bold(shop_wallet)
 	shop_box.add_child(shop_wallet)
+	shop_scroll = ScrollContainer.new()
+	shop_scroll.name = "RunnerGalleryScroll"
+	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	shop_scroll.follow_focus = true
+	shop_scroll.custom_minimum_size.y = 284
+	shop_box.add_child(shop_scroll)
 	shop_cards = GridContainer.new()
+	shop_cards.name = "RunnerGallery"
+	shop_cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shop_cards.columns = 4
 	shop_cards.add_theme_constant_override("h_separation", 12)
 	shop_cards.add_theme_constant_override("v_separation", 12)
-	shop_cards.custom_minimum_size.y = 284
-	shop_box.add_child(shop_cards)
-	shop_medal_row = HBoxContainer.new()
+	shop_scroll.add_child(shop_cards)
+	shop_medal_row = GridContainer.new()
 	shop_medal_row.name = "GeneratedMedalGallery"
-	shop_medal_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	shop_medal_row.add_theme_constant_override("separation", 20)
+	shop_medal_row.columns = 9
+	shop_medal_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	shop_medal_row.add_theme_constant_override("h_separation", 8)
 	shop_medal_row.custom_minimum_size.y = 52
 	shop_box.add_child(shop_medal_row)
 	shop_medals = _label("", 14, Color("#34516c"))
@@ -1869,6 +2406,9 @@ func _build_ui() -> void:
 
 func _show_menu() -> void:
 	state = GameState.MENU
+	power_timer = 0.0
+	shield_active = false
+	_stop_power_effect()
 	menu_layer.visible = true
 	result_layer.visible = false
 	shop_layer.visible = false
@@ -1888,6 +2428,7 @@ func _refresh_menu() -> void:
 	loadout_power_button.text = "POWER  •  %s     TAP TO CHANGE" % GameManager.POWERS[GameManager.selected_power].to_upper()
 	loadout_power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
 	daily_label.text = "✓  DAILY CHALLENGE COMPLETE" if GameManager.daily_complete else "DAILY CHALLENGE  •  COLLECT 15 FEATHERS  •  REWARD ◆25"
+	_update_music_button()
 
 func _cycle_power() -> void:
 	GameManager.set_power(GameManager.selected_power + 1)
@@ -1904,15 +2445,27 @@ func _show_shop() -> void:
 	menu_layer.visible = false
 	shop_layer.visible = true
 	_rebuild_shop_cards()
+	# A fresh visit always begins with the starter colors. Without this reset,
+	# reopening after inspecting premium colors can strand landscape players
+	# halfway between the two card rows.
+	shop_scroll.scroll_vertical = 0
+
+func _show_global_scores() -> void:
+	if not LeaderboardService.show_global_scores():
+		_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
 
 func _rebuild_shop_cards() -> void:
 	for child in shop_cards.get_children():
 		child.queue_free()
 	for child in shop_medal_row.get_children():
 		child.queue_free()
-	shop_wallet.text = "◆  %d FEATHERS" % GameManager.total_feathers
+	shop_wallet.text = "◆  %d FEATHERS     •     %d OF %d COLORS UNLOCKED" % [GameManager.total_feathers, GameManager.owned_skins.size(), GameManager.SKINS.size()]
 	var earned_medals := 0
-	var medal_colors := [Color("#20c7bc"), Color("#54c7f2"), Color("#8f75f5"), Color("#ff9c63"), Color("#82c86d"), Color("#ff6f9f")]
+	var medal_colors := [
+		Color("#20c7bc"), Color("#54c7f2"), Color("#8f75f5"), Color("#ff9c63"),
+		Color("#82c86d"), Color("#ff6f9f"), Color("#f45b91"), Color("#ff7b3d"),
+		Color("#7fc8ef"),
+	]
 	for biome_index in range(BIOMES.size()):
 		var medal_name := GameManager.medal_for_biome(biome_index)
 		if medal_name != "—":
@@ -1936,12 +2489,17 @@ func _rebuild_shop_cards() -> void:
 		medal_icon.tooltip_text = "%s — %s medal" % [BIOMES[biome_index].name, medal_name]
 		medal_bubble.add_child(medal_icon)
 	shop_medals.text = "BIOME MEDALS  •  %d OF %d EARNED" % [earned_medals, BIOMES.size()]
-	var skin_colors := [Color("#13c7c4"), Color("#7c5cff"), Color("#f7c948"), Color("#ff5da2")]
+	var skin_colors := [
+		Color("#13c7c4"), Color("#7c5cff"), Color("#f7c948"), Color("#ff5da2"),
+		Color("#655dff"), Color("#5fbe3f"), Color("#ff7048"), Color("#7cccf1"),
+		Color("#5268dd"), Color("#d58d88"), Color("#98dd24"), Color("#138f9c"),
+	]
 	for index in range(GameManager.SKINS.size()):
 		var card := PanelContainer.new()
 		card.name = "RunnerCard%d" % index
 		card.set_meta("accent_color", skin_colors[index])
 		card.set_meta("selected", GameManager.selected_skin == index)
+		card.set_meta("premium_portrait", index >= 4)
 		shop_cards.add_child(card)
 		var margin := MarginContainer.new()
 		margin.name = "CardMargin"
@@ -1952,7 +2510,8 @@ func _rebuild_shop_cards() -> void:
 		margin.add_child(box)
 		var portrait_bubble := PanelContainer.new()
 		portrait_bubble.name = "PortraitBubble"
-		portrait_bubble.add_theme_stylebox_override("panel", _panel_style(Color(1, 1, 1, 0.72), skin_colors[index].lerp(Color.WHITE, 0.35), 2, 28))
+		var portrait_fill := Color("#111b38") if index >= 4 else Color(1, 1, 1, 0.72)
+		portrait_bubble.add_theme_stylebox_override("panel", _panel_style(portrait_fill, skin_colors[index].lerp(Color.WHITE, 0.35), 3, 28))
 		box.add_child(portrait_bubble)
 		var portrait := TextureRect.new()
 		portrait.name = "RunnerPortrait"
@@ -2188,6 +2747,53 @@ func _style_hud_cards(is_portrait: bool) -> void:
 		var value := card.get_node("StatMargin/StatBox/StatValue") as Label
 		_set_font_size(title, 19 if is_portrait else 11)
 		_set_font_size(value, 35 if is_portrait else 20)
+
+func _result_stat_card(parent: Container, title: String, value: String, accent: Color) -> Label:
+	var card := PanelContainer.new()
+	card.name = title.to_pascal_case().replace(" ", "") + "ResultCard"
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.set_meta("accent", accent)
+	var card_style := _panel_style(accent.lerp(Color.WHITE, 0.78), accent, 3, 26)
+	card_style.shadow_color = Color(0.12, 0.08, 0.2, 0.2)
+	card_style.shadow_size = 8
+	card_style.shadow_offset = Vector2(0, 5)
+	card.add_theme_stylebox_override("panel", card_style)
+	parent.add_child(card)
+	var margin := MarginContainer.new()
+	margin.name = "ResultStatMargin"
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	card.add_child(margin)
+	var box := VBoxContainer.new()
+	box.name = "ResultStatBox"
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	margin.add_child(box)
+	var title_label := _label(title, 13, accent.darkened(0.48))
+	title_label.name = "ResultStatTitle"
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.add_theme_constant_override("outline_size", 0)
+	_set_bold(title_label)
+	box.add_child(title_label)
+	var value_label := _label(value, 24, Color("#173454"))
+	value_label.name = "ResultStatValue"
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_label.add_theme_constant_override("outline_size", 0)
+	_set_bold(value_label)
+	box.add_child(value_label)
+	return value_label
+
+func _style_result_stat_cards(is_portrait: bool) -> void:
+	for card_node in result_stats_grid.get_children():
+		var card := card_node as PanelContainer
+		if card == null:
+			continue
+		card.custom_minimum_size.y = 145.0 if is_portrait else 92.0
+		var title := card.get_node("ResultStatMargin/ResultStatBox/ResultStatTitle") as Label
+		var value := card.get_node("ResultStatMargin/ResultStatBox/ResultStatValue") as Label
+		_set_font_size(title, 21 if is_portrait else 13)
+		_set_font_size(value, 34 if is_portrait else 24)
 
 func _position_top_center(control: Control, width: float, top: float, height: float) -> void:
 	control.anchor_left = 0.5

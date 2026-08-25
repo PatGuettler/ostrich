@@ -1,6 +1,6 @@
 # Ostrich Dash
 
-A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, five characters, obstacles, pickups, powers, effects, medals, track surfaces, prop clusters, and six biome environments share one original premium animated-film 3D art direction. A third-person follow camera looks over the rear-facing ostrich as it runs away down a lightweight 3D track, with polished 2.5D generated plates and synthesized sound effects.
+A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, twelve runner colorways, rival character, obstacles, pickups, powers, effects, medals, track surfaces, prop clusters, and nine biome environments share one original premium animated-film 3D art direction. A third-person follow camera looks over the rear-facing ostrich as it runs away down a lightweight 3D track, with polished 2.5D generated plates and synthesized sound effects.
 
 ## Play
 
@@ -18,6 +18,7 @@ Controls:
 - Down arrow or S: duck
 - E or Q: activate a fully charged power-up
 - P or Escape: pause
+- Android system Back: pause/resume during a run, or return from Shop/Results to Home
 - Mobile: swipe sideways to switch lanes, swipe up to jump, and swipe down to duck; no on-screen arrow buttons are created
 - Android: rotate the device at any time; gameplay, menus, HUD, shop, camera framing, and the ad-safe area reflow for portrait or landscape
 
@@ -27,11 +28,17 @@ Controls:
 - Alternating hip-pivoted running legs with planted-shoe extension and recovery lift, plus jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
 - More breathable hazard spacing with occasional late-run two-lane patterns, plus hurdles, walls, cones, drones, slippery patches, and independently animated rival runners
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
-- Classic Stadium, Beach, Night, Desert, Snow, and Jungle biomes, each with unique generated vista art
-- Each 225-meter biome is a visible Tour stage with next-world progress and a +5 feather checkpoint reward; clearing all six stages awards a +25 Tour bonus before a reshuffled tour begins
+- Distinct dramatic bird reactions: a rising-and-falling startled squawk for a neck flip and a stumbling yelp with impact thud for a foot-level trip
+- Nine unique generated biomes: Classic Stadium, Beach, Night, Desert, Snow, Jungle, Candy Carnival, Volcano Valley, and Cloud Kingdom
+- Each 225-meter biome is a visible Tour stage with next-world progress and a +5 feather checkpoint reward; clearing all nine stages awards a +25 Tour bonus before a reshuffled tour begins
 - Large labeled Distance, Feathers, and Dodge Streak cards keep the important run stats readable in both orientations
 - Shield, Magnet, Slow-Mo, and Score Rush charge from clean dodges and feathers, then activate from a floating in-world-style ability bubble beside the runner
-- Persistent feather wallet, four unlockable skins, and biome medals
+- Every active power visibly follows the runner for its full timer with a color-coded protective aura and orbiting generated shield, magnet, clock, or star buddies
+- Original looping background music with a saved Music On/Off control on the home screen
+- Full celebration result sheet with selected-runner art, biome medal progress, four readable stat bubbles, daily/streak highlights, and large retry/home/global-score actions
+- Native Google Play Games `Longest Dash` global scoreboard entry points on Home and Results
+- Persistent feather wallet, twelve unlockable colorways, and nine biome medals
+- Long-term wardrobe progression: unlock prices climb from 1,000 to 200,000 feathers, with 700,000 feathers required for the complete collection
 - Daily 15-feather challenge and persistent save data
 - Pause, results, retry, shop, and loadout screens
 - Generated title art, app icon, front-view shop portraits, rear-view gameplay runners, rivals, hazards, rewards, effects, medals, surfaces, biome props, and vistas—no external game art
@@ -50,7 +57,13 @@ Create deterministic visual-audit captures for every biome, both obstacle groups
 godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_capture.gd
 ```
 
-Captures are written outside the project package to `user://art_audit/`. The complete object list and generation provenance are in [`docs/ART_INVENTORY.md`](docs/ART_INVENTORY.md) and [`assets/generated/gameplay/GENERATION_NOTES.md`](assets/generated/gameplay/GENERATION_NOTES.md).
+Captures are written outside the project package to `user://art_audit/`, including both halves of the scrolling portrait shop. The complete object list and generation provenance are in [`docs/ART_INVENTORY.md`](docs/ART_INVENTORY.md) and [`assets/generated/gameplay/GENERATION_NOTES.md`](assets/generated/gameplay/GENERATION_NOTES.md).
+
+To capture all four active power effects directly from portrait gameplay:
+
+```bash
+godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_capture.gd -- --powers-only
+```
 
 Rebuild the Google Play screenshot galleries from direct in-game captures with:
 
@@ -88,4 +101,4 @@ Release and data-practice notes are in [`docs/PRIVACY_AND_RELEASE.md`](docs/PRIV
 
 The project includes a signed Android App Bundle pipeline matching Peregrine. Pushes to `main` or `master` build, validate, smoke-test, and upload `com.grapegames.ostrichdash` to Google Play internal testing after the repository secrets and Play Console app are configured.
 
-See [`docs/PLAY_ANDROID.md`](docs/PLAY_ANDROID.md) for the immutable package-name decision, required secrets, Play service-account permissions, and local export instructions.
+See [`docs/PLAY_ANDROID.md`](docs/PLAY_ANDROID.md) for the immutable package-name decision, required secrets, Play service-account permissions, leaderboard setup, and local export instructions.

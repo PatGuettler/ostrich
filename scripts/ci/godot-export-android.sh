@@ -16,6 +16,8 @@ ARTIFACT_STEM="${ARTIFACT_STEM:-OstrichDash}"
 VERSION_CODE="${VERSION_CODE:-1}"
 VERSION_NAME="${VERSION_NAME:-1.${VERSION_CODE}}"
 ADMOB_ANDROID_APP_ID="${ADMOB_ANDROID_APP_ID:-${OSTRICH_DASH_ADMOB_ANDROID_APP_ID:-}}"
+PLAY_GAMES_APP_ID="${PLAY_GAMES_APP_ID:-${OSTRICH_DASH_PLAY_GAMES_APP_ID:-}}"
+PLAY_GAMES_LEADERBOARD_ID="${PLAY_GAMES_LEADERBOARD_ID:-${OSTRICH_DASH_LEADERBOARD_ID:-}}"
 
 PRESET_BACKUP=""
 PROJECT_SETTINGS_BACKUP=""
@@ -48,6 +50,10 @@ require_configuration() {
 	[[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] || fail "VERSION_CODE must be a positive integer"
 	[[ "$ADMOB_ANDROID_APP_ID" =~ ^ca-app-pub-[0-9]+~[0-9]+$ ]] || \
 		fail "OSTRICH_DASH_ADMOB_ANDROID_APP_ID must be an AdMob App ID (ca-app-pub-...~...)"
+	[[ "$PLAY_GAMES_APP_ID" =~ ^[0-9]+$ ]] || \
+		fail "OSTRICH_DASH_PLAY_GAMES_APP_ID must be the numeric Play Games project ID"
+	[[ -n "$PLAY_GAMES_LEADERBOARD_ID" ]] || \
+		fail "OSTRICH_DASH_LEADERBOARD_ID must be the Longest Dash leaderboard ID"
 	[[ -n "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}" ]] || \
 		fail "ANDROID_SDK_ROOT or ANDROID_HOME must be set"
 	export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
@@ -217,29 +223,40 @@ set_project_android_app_id() {
 	mv "$settings.tmp" "$settings"
 }
 
-ensure_admob_editor_plugin_enabled() {
+set_project_play_games_ids() {
+	local settings="$PROJECT/project.godot"
+	awk -v leaderboard_id="$PLAY_GAMES_LEADERBOARD_ID" '
+		/^play_games\/longest_dash_leaderboard_id=/ {
+			print "play_games/longest_dash_leaderboard_id=\"" leaderboard_id "\""; next
+		}
+		{ print }
+	' "$settings" > "$settings.tmp"
+	mv "$settings.tmp" "$settings"
+}
+
+ensure_android_editor_plugins_enabled() {
 	local settings="$PROJECT/project.godot"
 	awk '
 		BEGIN { in_plugins=0; found_section=0; wrote_enabled=0 }
 		/^\[editor_plugins\]$/ { in_plugins=1; found_section=1; print; next }
 		/^\[/ {
 			if (in_plugins && !wrote_enabled) {
-				print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\")"
+				print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\", \"res://addons/GodotPlayGameServices/plugin.cfg\")"
 				wrote_enabled=1
 			}
 			in_plugins=0
 		}
 		in_plugins && /^enabled=/ {
-			print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\")"
+			print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\", \"res://addons/GodotPlayGameServices/plugin.cfg\")"
 			wrote_enabled=1
 			next
 		}
 		{ print }
 		END {
-			if (in_plugins && !wrote_enabled) print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\")"
+			if (in_plugins && !wrote_enabled) print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\", \"res://addons/GodotPlayGameServices/plugin.cfg\")"
 			if (!found_section) {
 				print ""; print "[editor_plugins]"; print ""
-				print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\")"
+				print "enabled=PackedStringArray(\"res://addons/admob/plugin.cfg\", \"res://addons/GodotPlayGameServices/plugin.cfg\")"
 			}
 		}
 	' "$settings" > "$settings.tmp"
@@ -247,7 +264,7 @@ ensure_admob_editor_plugin_enabled() {
 }
 
 mutate_play_preset() {
-	export VERSION_CODE VERSION_NAME RELEASE_PACKAGE_NAME
+	export VERSION_CODE VERSION_NAME RELEASE_PACKAGE_NAME PLAY_GAMES_APP_ID
 	local preset="$PROJECT/export_presets.cfg"
 	awk -v want="$EXPORT_PRESET" '
 		BEGIN { in_play=0 }
@@ -255,6 +272,7 @@ mutate_play_preset() {
 		in_play && /^version\/code=/ { print "version/code=" ENVIRON["VERSION_CODE"]; next }
 		in_play && /^version\/name=/ { print "version/name=\"" ENVIRON["VERSION_NAME"] "\""; next }
 		in_play && /^package\/unique_name=/ { print "package/unique_name=\"" ENVIRON["RELEASE_PACKAGE_NAME"] "\""; next }
+		in_play && /^godot_play_game_services\/game_id=/ { print "godot_play_game_services/game_id=\"" ENVIRON["PLAY_GAMES_APP_ID"] "\""; next }
 		{ print }
 	' "$preset" > "$preset.tmp"
 	mv "$preset.tmp" "$preset"
@@ -321,6 +339,7 @@ main() {
 	install_admob_android_binaries
 	write_admob_config
 	set_project_android_app_id
+	set_project_play_games_ids
 	mutate_play_preset
 
 	echo "Importing project assets..."
@@ -329,7 +348,7 @@ main() {
 	# incremental filesystem/import scan without that command-mode crash.
 	godot --headless --path "$PROJECT" --editor --quit
 	godot --headless --path "$PROJECT" --quit
-	ensure_admob_editor_plugin_enabled
+	ensure_android_editor_plugins_enabled
 
 	ensure_android_build_template
 	apply_play_gradle_overlay

@@ -7,14 +7,31 @@ const SKIN_TEXTURE_PATHS := [
 	"res://assets/generated/gameplay/runner_classic_back.png",
 	"res://assets/generated/gameplay/runner_midnight_back.png",
 	"res://assets/generated/gameplay/runner_golden_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_back.png"
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_back.png",
+	"res://assets/generated/gameplay/runner_classic_back.png",
+	"res://assets/generated/gameplay/runner_midnight_back.png",
 ]
 const BODY_TEXTURE_PATHS := [
 	"res://assets/generated/gameplay/runner_classic_body_back.png",
 	"res://assets/generated/gameplay/runner_midnight_body_back.png",
 	"res://assets/generated/gameplay/runner_golden_body_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_body_back.png"
+	"res://assets/generated/gameplay/runner_bubblegum_body_back.png",
+	"res://assets/generated/gameplay/runner_midnight_body_back.png",
+	"res://assets/generated/gameplay/runner_classic_body_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_body_back.png",
+	"res://assets/generated/gameplay/runner_classic_body_back.png",
+	"res://assets/generated/gameplay/runner_midnight_body_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_body_back.png",
+	"res://assets/generated/gameplay/runner_classic_body_back.png",
+	"res://assets/generated/gameplay/runner_midnight_body_back.png",
 ]
+const RUN_LEG_SHEET_PATH := "res://assets/generated/gameplay/runner_classic_legs_run_sheet.png"
 
 var lane := 1
 var jump_velocity := 0.0
@@ -36,10 +53,7 @@ var right_leg: Node3D
 var left_wing: Node3D
 var right_wing: Node3D
 var character_sprite: Sprite3D
-var left_stride_pivot: Node3D
-var right_stride_pivot: Node3D
-var left_leg_sprite: Sprite3D
-var right_leg_sprite: Sprite3D
+var run_leg_sprite: Sprite3D
 var ground_shadow: MeshInstance3D
 var current_skin_index := 0
 var visor_parts: Array[MeshInstance3D] = []
@@ -67,7 +81,7 @@ func reset_player() -> void:
 	character_sprite.rotation = Vector3.ZERO
 	character_sprite.scale = Vector3.ONE
 	_set_layered_runner_visible(true)
-	_reset_stride_layers()
+	_reset_run_cycle()
 	visible = true
 	apply_skin(GameManager.selected_skin)
 
@@ -235,8 +249,15 @@ func _animate_run() -> void:
 	var bounce := absf(sin(pace)) * 0.10
 	left_leg.rotation.x = swing
 	right_leg.rotation.x = -swing
-	_animate_stride_layer(left_stride_pivot, left_leg_sprite, swing, bounce, true)
-	_animate_stride_layer(right_stride_pivot, right_leg_sprite, -swing, bounce, false)
+	# Six authored poses replace the old rigid cutout rotation. Advancing the
+	# 3x2 sheet changes knee bend, recovery height, planted foot, and visible sole
+	# while the body plate continues to bob smoothly above it.
+	if is_instance_valid(run_leg_sprite) and run_leg_sprite.visible:
+		var stride_phase := fposmod(pace, TAU) / TAU
+		run_leg_sprite.frame = mini(int(floor(stride_phase * 6.0)), 5)
+		run_leg_sprite.position.y = 1.15 + bounce
+		run_leg_sprite.rotation.z = sin(pace) * 0.018
+		run_leg_sprite.scale = Vector3(1.0 + bounce * 0.08, 1.0 - bounce * 0.04, 1.0)
 	left_wing.rotation.z = -0.35 + sin(pace) * 0.12
 	right_wing.rotation.z = 0.35 - sin(pace) * 0.12
 	body.position.y = 2.55 + bounce
@@ -251,8 +272,8 @@ func _animate_run() -> void:
 		body.scale.y = lerpf(body.scale.y, 0.78, 0.3)
 		character_sprite.scale.y = lerpf(character_sprite.scale.y, 0.72, 0.3)
 		character_sprite.position.y = lerpf(character_sprite.position.y, 1.95, 0.3)
-		left_stride_pivot.position.y = lerpf(left_stride_pivot.position.y, 1.73 + bounce * 0.35, 0.3)
-		right_stride_pivot.position.y = lerpf(right_stride_pivot.position.y, 1.73 + bounce * 0.35, 0.3)
+		if is_instance_valid(run_leg_sprite):
+			run_leg_sprite.position.y = lerpf(run_leg_sprite.position.y, 0.82 + bounce * 0.35, 0.3)
 	else:
 		neck.scale.y = lerpf(neck.scale.y, 1.0, 0.28)
 		neck.rotation.x = lerpf(neck.rotation.x, sin(pace * 0.5) * 0.025, 0.25)
@@ -267,29 +288,51 @@ func _idle_animation(delta: float) -> void:
 	character_sprite.position.y = 2.53 + sin(run_clock * 2.0) * 0.04
 	character_sprite.rotation.z = sin(run_clock * 1.4) * 0.012
 	head.rotation.y = sin(run_clock * 0.8) * 0.1
-	if is_instance_valid(left_stride_pivot) and left_leg_sprite.visible:
-		left_stride_pivot.rotation.x = lerpf(left_stride_pivot.rotation.x, 0.0, delta * 7.0)
-		right_stride_pivot.rotation.x = lerpf(right_stride_pivot.rotation.x, 0.0, delta * 7.0)
-		left_stride_pivot.scale = left_stride_pivot.scale.lerp(Vector3.ONE, delta * 7.0)
-		right_stride_pivot.scale = right_stride_pivot.scale.lerp(Vector3.ONE, delta * 7.0)
+	if is_instance_valid(run_leg_sprite) and run_leg_sprite.visible:
+		run_leg_sprite.frame = 2
+		run_leg_sprite.position.y = lerpf(run_leg_sprite.position.y, 1.15, delta * 7.0)
+		run_leg_sprite.rotation.z = lerpf(run_leg_sprite.rotation.z, 0.0, delta * 7.0)
+		run_leg_sprite.scale = run_leg_sprite.scale.lerp(Vector3.ONE, delta * 7.0)
 
 func apply_skin(index: int) -> void:
 	var palettes := [
 		[Color("#171821"), Color("#13c7c4"), Color("#fff0cf")],
 		[Color("#1b1c45"), Color("#7c5cff"), Color("#d9d5ff")],
 		[Color("#5b3514"), Color("#f7c948"), Color("#fff1ad")],
-		[Color("#58243f"), Color("#ff5da2"), Color("#ffe0ee")]
+		[Color("#58243f"), Color("#ff5da2"), Color("#ffe0ee")],
+		[Color("#161744"), Color("#5d62ff"), Color("#d9f4ff")],
+		[Color("#063f32"), Color("#8bd329"), Color("#f8efc8")],
+		[Color("#76273a"), Color("#ff713f"), Color("#ffe0d5")],
+		[Color("#44647f"), Color("#82d9ff"), Color("#f0efff")],
+		[Color("#11194e"), Color("#55dcff"), Color("#ffe4a6")],
+		[Color("#74434b"), Color("#e9a192"), Color("#fff2dc")],
+		[Color("#063b2e"), Color("#b7ff24"), Color("#f9ffc7")],
+		[Color("#082f54"), Color("#17b9a8"), Color("#c8a4ff")],
+	]
+	var art_tints := [
+		Color.WHITE,
+		Color.WHITE,
+		Color.WHITE,
+		Color.WHITE,
+		Color(0.92, 0.84, 1.15, 1.0),
+		Color(0.64, 1.05, 0.72, 1.0),
+		Color(1.12, 0.78, 0.62, 1.0),
+		Color(0.72, 0.92, 1.16, 1.0),
+		Color(0.78, 0.82, 1.18, 1.0),
+		Color(1.15, 0.82, 0.86, 1.0),
+		Color(0.72, 1.18, 0.62, 1.0),
+		Color(0.68, 0.96, 1.16, 1.0),
 	]
 	current_skin_index = clampi(index, 0, palettes.size() - 1)
 	var p: Array = palettes[current_skin_index]
+	var art_tint: Color = art_tints[current_skin_index]
 	if is_instance_valid(character_sprite):
 		character_sprite.texture = load(SKIN_TEXTURE_PATHS[current_skin_index] if stunned else BODY_TEXTURE_PATHS[current_skin_index])
-	if is_instance_valid(left_leg_sprite):
-		var leg_texture: Texture2D = load(SKIN_TEXTURE_PATHS[current_skin_index])
-		left_leg_sprite.texture = leg_texture
-		right_leg_sprite.texture = leg_texture
-		(left_leg_sprite.material_override as ShaderMaterial).set_shader_parameter("leg_texture", leg_texture)
-		(right_leg_sprite.material_override as ShaderMaterial).set_shader_parameter("leg_texture", leg_texture)
+		character_sprite.modulate = art_tint
+	if is_instance_valid(run_leg_sprite):
+		run_leg_sprite.modulate = Color.WHITE
+		var leg_material := run_leg_sprite.material_override as ShaderMaterial
+		leg_material.set_shader_parameter("shoe_color", p[1])
 	for mesh in dark_parts:
 		mesh.material_override = _material(p[0], 0.7, 0.05)
 	for mesh in accent_parts:
@@ -374,14 +417,24 @@ func _build_ostrich() -> void:
 	character_sprite.render_priority = 3
 	visual.add_child(character_sprite)
 
-	# The production runner uses a legless body plate over two masked copies of
-	# the original high-detail legs. Each copy pivots from its hip, so the shoes
-	# alternately drive toward the track and recover overhead instead of staying
-	# frozen inside one full-body picture.
-	left_stride_pivot = _make_stride_layer("LeftStride", true, Vector3(-0.29, 2.22, -0.07))
-	right_stride_pivot = _make_stride_layer("RightStride", false, Vector3(0.20, 2.22, -0.07))
-	left_leg_sprite = left_stride_pivot.get_node("LegArt") as Sprite3D
-	right_leg_sprite = right_stride_pivot.get_node("LegArt") as Sprite3D
+	# The production runner uses a legless body plate over a six-pose run-cycle
+	# sheet. Every frame has the same hip anchor, so contact, push-off, passing,
+	# and recovery poses remain stable beneath the feather body.
+	run_leg_sprite = Sprite3D.new()
+	run_leg_sprite.name = "GeneratedSixPoseRunLegs"
+	run_leg_sprite.texture = load(RUN_LEG_SHEET_PATH)
+	run_leg_sprite.hframes = 3
+	run_leg_sprite.vframes = 2
+	run_leg_sprite.frame = 2
+	run_leg_sprite.position = Vector3(0.0, 1.15, -0.07)
+	run_leg_sprite.pixel_size = 0.0043
+	run_leg_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	run_leg_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	run_leg_sprite.shaded = false
+	run_leg_sprite.double_sided = true
+	run_leg_sprite.render_priority = 3
+	run_leg_sprite.material_override = _run_leg_palette_material()
+	visual.add_child(run_leg_sprite)
 	character_sprite.texture = load(BODY_TEXTURE_PATHS[0])
 	character_sprite.render_priority = 4
 
@@ -410,74 +463,39 @@ func _make_leg(parent: Node3D, x: float) -> Node3D:
 	accent_parts.append(shoe)
 	return pivot
 
-func _make_stride_layer(node_name: String, keep_left: bool, hip_position: Vector3) -> Node3D:
-	var pivot := Node3D.new()
-	pivot.name = node_name
-	pivot.position = hip_position
-	visual.add_child(pivot)
-	var sprite := Sprite3D.new()
-	sprite.name = "LegArt"
-	sprite.texture = load(SKIN_TEXTURE_PATHS[0])
-	sprite.position = Vector3(-hip_position.x, 2.53 - hip_position.y, -0.01)
-	sprite.pixel_size = 0.00335
-	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	sprite.shaded = false
-	sprite.double_sided = true
-	sprite.render_priority = 2
-	sprite.material_override = _leg_mask_material(sprite.texture, keep_left)
-	pivot.add_child(sprite)
-	return pivot
-
-func _leg_mask_material(texture: Texture2D, keep_left: bool) -> ShaderMaterial:
+func _run_leg_palette_material() -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = """
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_prepass_alpha;
-uniform sampler2D leg_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-uniform float keep_left = 1.0;
+uniform sampler2D texture_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform vec4 shoe_color : source_color = vec4(0.075, 0.78, 0.77, 1.0);
 void fragment() {
-	vec4 art = texture(leg_texture, UV);
-	float below_hip = step(0.535, UV.y);
-	float left_half = 1.0 - step(0.515, UV.x);
-	float selected_half = mix(1.0 - left_half, left_half, keep_left);
-	ALBEDO = art.rgb;
-	ALPHA = art.a * below_hip * selected_half;
+	vec4 art = texture(texture_albedo, UV);
+	float cyan = smoothstep(0.025, 0.18, min(art.g - art.r, art.b - art.r));
+	float brightness = max(art.r, max(art.g, art.b));
+	vec3 recolored_shoe = shoe_color.rgb * mix(0.42, 1.42, brightness);
+	ALBEDO = mix(art.rgb, recolored_shoe, cyan * 0.92);
+	ALPHA = art.a;
 }
 """
 	var material := ShaderMaterial.new()
 	material.shader = shader
-	material.set_shader_parameter("leg_texture", texture)
-	material.set_shader_parameter("keep_left", 1.0 if keep_left else 0.0)
+	material.set_shader_parameter("texture_albedo", load(RUN_LEG_SHEET_PATH))
 	return material
 
-func _animate_stride_layer(pivot: Node3D, sprite: Sprite3D, drive: float, bounce: float, is_left: bool) -> void:
-	if not is_instance_valid(pivot) or not sprite.visible:
+func _reset_run_cycle() -> void:
+	if not is_instance_valid(run_leg_sprite):
 		return
-	var recovery := maxf(drive, 0.0)
-	var extension := maxf(-drive, 0.0)
-	pivot.rotation.x = drive * 0.92
-	pivot.rotation.z = drive * (0.045 if is_left else -0.045)
-	pivot.scale.y = 0.86 + extension * 0.24 - recovery * 0.12
-	pivot.scale.x = 1.0 + extension * 0.05
-	pivot.position.y = 2.22 + bounce + recovery * 0.16
-	pivot.position.z = -0.07 + drive * 0.22
-	sprite.render_priority = 3 if drive > 0.0 else 2
-
-func _reset_stride_layers() -> void:
-	if not is_instance_valid(left_stride_pivot):
-		return
-	left_stride_pivot.position = Vector3(-0.29, 2.22, -0.07)
-	right_stride_pivot.position = Vector3(0.20, 2.22, -0.07)
-	left_stride_pivot.rotation = Vector3.ZERO
-	right_stride_pivot.rotation = Vector3.ZERO
-	left_stride_pivot.scale = Vector3.ONE
-	right_stride_pivot.scale = Vector3.ONE
+	run_leg_sprite.frame = 2
+	run_leg_sprite.position = Vector3(0.0, 1.15, -0.07)
+	run_leg_sprite.rotation = Vector3.ZERO
+	run_leg_sprite.scale = Vector3.ONE
 
 func _set_layered_runner_visible(enabled: bool) -> void:
-	if not is_instance_valid(left_leg_sprite):
+	if not is_instance_valid(run_leg_sprite):
 		return
-	left_leg_sprite.visible = enabled
-	right_leg_sprite.visible = enabled
+	run_leg_sprite.visible = enabled
 	if enabled:
 		character_sprite.texture = load(BODY_TEXTURE_PATHS[current_skin_index])
 

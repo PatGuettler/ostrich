@@ -1,8 +1,14 @@
 extends Node
 
 const SAVE_PATH := "user://ostrich_dash_save.cfg"
-const SKINS := ["Classic", "Midnight", "Golden", "Bubblegum"]
-const SKIN_COSTS := [0, 60, 150, 240]
+const SKINS := [
+	"Classic", "Midnight", "Golden", "Bubblegum", "Aurora", "Emerald",
+	"Sunset", "Frost", "Celestial", "Rose Gold", "Electric Lime", "Royal Peacock",
+]
+# The complete twelve-color wardrobe costs 700,000 feathers. The high-combo
+# feather economy lets skilled players earn quickly, so the prestige colors
+# extend the collection into a genuine long-term goal.
+const SKIN_COSTS := [0, 1000, 3500, 7500, 14000, 24000, 40000, 60000, 85000, 115000, 150000, 200000]
 const POWERS := ["Shield", "Magnet", "Slow-Mo", "Score Rush"]
 
 var total_feathers := 0
@@ -10,9 +16,10 @@ var best_distance := 0.0
 var selected_skin := 0
 var selected_power := 0
 var owned_skins: Array[int] = [0]
-var biome_bests: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+var biome_bests: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 var daily_date := ""
 var daily_complete := false
+var music_enabled := true
 var save_enabled := true
 
 func _ready() -> void:
@@ -37,6 +44,7 @@ func load_save() -> void:
 		biome_bests[i] = float(saved_bests[i])
 	daily_date = str(cfg.get_value("daily", "date", ""))
 	daily_complete = bool(cfg.get_value("daily", "complete", false))
+	music_enabled = bool(cfg.get_value("settings", "music_enabled", true))
 	var today := Time.get_date_string_from_system()
 	if daily_date != today:
 		daily_date = today
@@ -54,6 +62,7 @@ func save() -> void:
 	cfg.set_value("loadout", "power", selected_power)
 	cfg.set_value("daily", "date", daily_date)
 	cfg.set_value("daily", "complete", daily_complete)
+	cfg.set_value("settings", "music_enabled", music_enabled)
 	cfg.save(SAVE_PATH)
 
 func finish_run(distance: float, feathers: int, biome: int) -> Dictionary:
@@ -88,6 +97,10 @@ func buy_or_equip_skin(index: int) -> bool:
 
 func set_power(index: int) -> void:
 	selected_power = posmod(index, POWERS.size())
+	save()
+
+func set_music_enabled(enabled: bool) -> void:
+	music_enabled = enabled
 	save()
 
 func medal_for_biome(index: int) -> String:

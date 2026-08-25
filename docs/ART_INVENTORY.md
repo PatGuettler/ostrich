@@ -1,8 +1,8 @@
 # Ostrich Dash gameplay art inventory
 
-This is the production checklist for bringing every visible gameplay element up to the cute, polished 3D-rendered quality of `assets/generated/ostrich_dash_key_art.png` and the six biome vistas.
+This is the production checklist for bringing every visible gameplay element up to the cute, polished 3D-rendered quality of `assets/generated/ostrich_dash_key_art.png` and the nine biome vistas.
 
-**Production status: complete.** Every replacement listed below is generated, integrated, and covered by the gameplay smoke test. Deterministic visual captures for all six biomes, obstacle families, effects, trip pose, and shop are produced by `tests/art_capture.gd`.
+**Production status: complete.** Every replacement listed below is generated, integrated, and covered by the gameplay smoke test. Deterministic visual captures for all nine biomes, obstacle families, effects, trip pose, and shop are produced by `tests/art_capture.gd`.
 
 ## Art direction anchor
 
@@ -27,6 +27,9 @@ This is the production checklist for bringing every visible gameplay element up 
 | `desert_circuit_vista.png` | Desert backdrop | Keep |
 | `snow_games_vista.png` | Snow backdrop | Keep |
 | `jungle_track_vista.png` | Jungle backdrop | Keep |
+| `candy_carnival_vista.png` | Candy Carnival backdrop | New original generated vista |
+| `volcano_valley_vista.png` | Volcano Valley backdrop | New original generated vista |
+| `cloud_kingdom_vista.png` | Cloud Kingdom backdrop | New original generated vista |
 
 ## Player and characters
 
@@ -36,6 +39,14 @@ This is the production checklist for bringing every visible gameplay element up 
 | Midnight skin | Primitive recolor | Matching rear-view midnight-purple runner sprite |
 | Golden skin | Primitive recolor | Matching rear-view sunshine-gold runner sprite |
 | Bubblegum skin | Primitive recolor | Matching rear-view candy-pink runner sprite |
+| Aurora skin | None | Premium navy/violet portrait plus a violet-and-cyan gameplay color treatment |
+| Emerald skin | None | Premium forest-green portrait plus a bright emerald gameplay color treatment |
+| Sunset skin | None | Premium coral/tangerine portrait plus a warm sunset gameplay color treatment |
+| Frost skin | None | Premium ice-blue/lavender portrait plus a glacier-blue gameplay color treatment |
+| Celestial skin | None | Premium cobalt/cyan/gold portrait plus a starry gameplay color treatment |
+| Rose Gold skin | None | Premium blush/champagne portrait plus a warm metallic gameplay color treatment |
+| Electric Lime skin | None | Premium lime/charcoal portrait plus a high-energy gameplay color treatment |
+| Royal Peacock skin | None | Premium teal/royal-purple portrait plus a jewel-toned gameplay color treatment |
 | Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich split into a body, two independently animated stride layers, and a planted shadow |
 | Run motion | Primitive leg/wing swing | Two independently masked high-detail leg/shoe layers pivot from the hips with alternating extension, recovery lift, depth, body bob, lean, and shadow |
 | Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
@@ -56,10 +67,10 @@ This is the production checklist for bringing every visible gameplay element up 
 
 | Visible object | Current render | Replacement |
 | --- | --- | --- |
-| Shield | Text only | Puffy teal shield icon |
-| Magnet | Text only | Horseshoe magnet with feather sparkles |
-| Slow-Mo | Text only | Friendly stopwatch icon |
-| Score Rush | Text only | Winged gold star/score burst icon |
+| Shield | Text only | Puffy teal shield buddies orbit inside a luminous cyan protection shell for the entire active timer |
+| Magnet | Text only | Horseshoe magnets orbit the runner inside a pink attraction aura for the entire active timer |
+| Slow-Mo | Text only | Friendly stopwatches orbit inside a lavender time-warp aura for the entire active timer |
+| Score Rush | Text only | Winged gold stars orbit inside a sunny score aura for the entire active timer |
 | Collision burst | Primitive capsules | Feather/dust/sparkle effect sprites |
 | Bronze/Silver/Gold medals | Text only | Cute winged medal badges |
 
@@ -73,13 +84,16 @@ This is the production checklist for bringing every visible gameplay element up 
 | Desert Circuit | Flattened rocks and primitive cactus | Rounded canyon rocks, flowering cactus, windsock |
 | Snow Games | Flattened snow and cone trees | Puffy snowbank, frosted pine, lantern, pennants |
 | Jungle Track | Capsule trunks and sphere leaves | Ruin stone, broad leaves, orchids, bamboo pennants |
+| Candy Carnival | None | Candy arches, balloons, sprinkle shrubs, and frosting clouds |
+| Volcano Valley | None | Friendly lava caldera, basalt, ember palms, and festival pennants |
+| Cloud Kingdom | None | Floating islands, cloud grandstands, rainbow arches, and golden flags |
 
 ## Track and ground surfaces
 
 | Surface | Current render | Replacement |
 | --- | --- | --- |
-| Running track | Flat colored box | Six 1254×1254 high-detail rubber/sand/ice/dirt materials, tiled at world scale, plus procedural lane markings |
-| Side ground | Flat colored box | Six coordinated high-detail biome materials with mipmapped anisotropic filtering |
+| Running track | Flat colored box | Nine 1254×1254 high-detail rubber/sand/ice/dirt materials, tiled at world scale, plus procedural lane markings |
+| Side ground | Flat colored box | Nine coordinated high-detail biome materials with mipmapped anisotropic filtering |
 | Player grounding | None | Soft animated oval shadow |
 
 ## UI surfaces
@@ -87,13 +101,33 @@ This is the production checklist for bringing every visible gameplay element up 
 | Screen/object | Current render | Replacement or polish |
 | --- | --- | --- |
 | Race dashboard | Unlabeled four-value bar | Three large labeled stat cards plus Tour/Stage, current biome, next-world distance, reward, and checkpoint progress |
-| Power button | Detached meter and tiny corner button | Animated floating ability bubble beside the runner with power art, charge instructions, embedded meter, and mobile “Tap to use” state |
-| Skin shop cards | Pastel candy cards | Large character portraits, colored portrait bubbles, chunky unlock/wear buttons, and a responsive 2×2 phone layout |
-| Biome medals | Medal bubble gallery | Six individually tinted, rounded badge bubbles with a readable earned-medal summary |
+| Power button | Detached meter and tiny corner button | Animated floating ability bubble beside the runner with power art, charge instructions, embedded meter, mobile “Tap to use” state, and a visible seconds-remaining readout while its matching world aura follows the ostrich |
+| Skin shop cards | Pastel candy cards | Twelve large character portraits, colored portrait bubbles, chunky unlock/wear buttons, and a responsive scrolling 2-column phone layout |
+| Biome medals | Medal bubble gallery | Nine individually tinted, rounded badge bubbles with a readable earned-medal summary |
 | Startup menu | Dimensional title menu | Oversized responsive glass card, extra-rounded candy controls, bundled readable type, clear CTA hierarchy, stat/loadout pills, and a quiet in-card Privacy & Data footer |
+| Music control | None | Readable in-card Music On/Off pill sharing the footer row; its preference persists between launches |
 | Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents, bold embedded display font |
 | Touch controls | Arrow text | Mobile remains swipe-only; desktop controls stay unobtrusive |
-| Results/pause/toast | Flat modal panels | Same polished panel language with small character/reward art accents |
+| Results/pause/toast | Celebration UI | Oversized selected-runner art, biome prize bubble, four pastel stat cards, readable highlight pill, and candy actions |
+
+### Result-screen object inventory
+
+| Object | Cute production treatment |
+| --- | --- |
+| Dimmed run backdrop | Keeps the finished track visible behind the celebration instead of replacing the game world |
+| Celebration sheet | Large warm-cream card with thick aqua rim, deep soft shadow, and oversized rounded corners |
+| Result headline | Coral-and-gold candy bubble with a readable personal-best/crash-specific message |
+| Finish caption | Friendly reaction copy instead of technical collision terminology |
+| Runner portrait | Large selected-skin character art inside a mint portrait bubble |
+| Biome badge | Winged medal art inside its own golden prize bubble, including a visible Bronze target when still locked |
+| Distance card | Blue pastel stat bubble with an oversized value |
+| Score card | Purple pastel stat bubble with an oversized value |
+| Feather card | Gold pastel reward bubble with an oversized run total |
+| Personal-best card | Pink pastel stat bubble highlighting the long-term target |
+| Run highlight | Mint pill showing the best dodge streak, near misses, or daily reward |
+| Run Again action | Large coral/gold primary candy button |
+| Back Home action | Large aqua secondary candy button |
+| Global Scores action | Opens the native Google Play Games “Longest Dash” leaderboard when its release IDs are configured |
 
 ## Generated production asset set
 
@@ -103,22 +137,36 @@ The integration uses a small number of high-resolution transparent plates and at
 2. `runner_midnight.png`
 3. `runner_golden.png`
 4. `runner_bubblegum.png`
-5. `rival_runner.png`
-6. `runner_classic_back.png`
-7. `runner_midnight_back.png`
-8. `runner_golden_back.png`
-9. `runner_bubblegum_back.png`
-10. `rival_runner_back.png`
-11. `runner_classic_body_back.png`
-12. `runner_midnight_body_back.png`
-13. `runner_golden_body_back.png`
-14. `runner_bubblegum_body_back.png`
-15. `obstacle_atlas.png` — 3×2 cells
-16. `reward_power_atlas.png` — 3×2 cells
-17. `biome_prop_atlas.png` — 3×2 cells
-18. `effects_medals_atlas.png` — 3×2 cells
-19. `surface_atlas.png` — 3×2 cells
+5. `runner_aurora.png`
+6. `runner_emerald.png`
+7. `runner_sunset.png`
+8. `runner_frost.png`
+9. `runner_celestial.png`
+10. `runner_rose_gold.png`
+11. `runner_electric_lime.png`
+12. `runner_royal_peacock.png`
+13. `rival_runner.png`
+14. `runner_classic_back.png`
+15. `runner_midnight_back.png`
+16. `runner_golden_back.png`
+17. `runner_bubblegum_back.png`
+18. `rival_runner_back.png`
+19. `runner_classic_body_back.png`
+20. `runner_midnight_body_back.png`
+21. `runner_golden_body_back.png`
+22. `runner_bubblegum_body_back.png`
+23. `obstacle_atlas.png` — 3×2 cells
+24. `reward_power_atlas.png` — 3×2 cells
+25. `biome_prop_atlas.png` — 3×2 cells
+26. `effects_medals_atlas.png` — 3×2 cells
+27. `surface_atlas.png` — 3×2 cells
 
-The six surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses the separately generated 1254×1254 production materials in `gameplay/surfaces/hd/` because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
+The six original surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses nine separately generated 1254×1254 production materials in `gameplay/surfaces/hd/`—including the new candy, volcano, and cloud materials—because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 
 All generated files are stored under `assets/generated/gameplay/` and consumed by code. Existing procedural collision and movement logic remains authoritative even when its placeholder geometry is hidden.
+
+The eight premium additions use newly generated front portraits in the store. On the track they reuse the proven layered rear-running plates with distinct palette modulation, preserving the independently animated legs and readable rear camera while keeping the Android package lean.
+
+## Wardrobe progression target
+
+The twelve-color collection costs 700,000 feathers in total. The paid ladder is 1,000, 3,500, 7,500, 14,000, 24,000, 40,000, 60,000, 85,000, 115,000, 150,000, and 200,000 feathers. Prices deliberately rise with rarity so the early wardrobe gives a reachable first goal while the complete collection remains a multi-hour achievement, including for skilled players who sustain the 9× pickup multiplier. The smoke test enforces twelve entries, increasing prices, and the full 700,000-feather total to prevent accidental economy regressions.
