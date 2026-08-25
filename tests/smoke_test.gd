@@ -47,9 +47,15 @@ func _run() -> void:
 		not is_instance_valid(leaderboard_service)
 		or leaderboard_service.available
 		or not leaderboard_service.leaderboard_id.is_empty()
-		or leaderboard_service.show_global_scores()
+		or leaderboard_service.show_global_scores() != "setup"
 	):
 		push_error("The optional Play Games leaderboard service is missing or unsafe without release IDs")
+		quit(1)
+		return
+	game._show_global_scores()
+	await process_frame
+	if game.toast_label.visible and "PLAY GAMES SETUP" not in game.toast_label.text:
+		push_error("GLOBAL SCORES should show the Play Games setup toast when release IDs are blank")
 		quit(1)
 		return
 	if bool(ProjectSettings.get_setting("application/config/quit_on_go_back", true)):

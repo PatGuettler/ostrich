@@ -2451,8 +2451,15 @@ func _show_shop() -> void:
 	shop_scroll.scroll_vertical = 0
 
 func _show_global_scores() -> void:
-	if not LeaderboardService.show_global_scores():
-		_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
+	match LeaderboardService.show_global_scores():
+		"":
+			pass
+		"signing_in":
+			_show_toast("SIGN IN TO GOOGLE PLAY GAMES TO VIEW GLOBAL SCORES")
+		"unavailable":
+			_show_toast("GLOBAL SCORES NEED THE PLAY GAMES ANDROID BUILD")
+		_:
+			_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
 
 func _rebuild_shop_cards() -> void:
 	for child in shop_cards.get_children():

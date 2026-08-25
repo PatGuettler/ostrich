@@ -9,7 +9,7 @@ Ostrich Dash integrates Google Play Games Services (PGS) v2 and the Godot Play G
 - Submission: when the result screen opens
 - Entry points: `GLOBAL SCORES` on Home and Results
 
-On Android, PGS handles platform authentication and opens Google's native all-users ranking screen. On desktop, debug builds, or Android builds without IDs, the buttons show a friendly setup message and gameplay continues normally.
+On Android, PGS handles platform authentication and opens Google's native all-users ranking screen. The game checks sign-in at startup and prompts for Google Play Games sign-in when the player taps **GLOBAL SCORES** if needed. Scores submit only after sign-in succeeds. On desktop, debug builds, or Android builds without IDs, the buttons show a friendly setup message and gameplay continues normally.
 
 ## One-time Play Console setup
 
