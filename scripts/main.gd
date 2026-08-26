@@ -298,7 +298,6 @@ func _ready() -> void:
 	_build_game_viewport()
 	_init_runtime_caches()
 	_build_world()
-	_apply_mobile_render_tier()
 	_build_ui()
 	_build_audio()
 	_show_menu()
@@ -372,19 +371,6 @@ func _make_power_aura_material() -> StandardMaterial3D:
 func _configure_power_aura(material: StandardMaterial3D, color: Color, alpha: float) -> void:
 	material.albedo_color = Color(color.r, color.g, color.b, alpha)
 	material.emission = color
-
-func _apply_mobile_render_tier() -> void:
-	if not mobile_mode or not is_instance_valid(world_environment):
-		return
-	var environment := world_environment.environment
-	environment.glow_enabled = false
-	environment.fog_density = minf(environment.fog_density, 0.0025)
-	if is_instance_valid(sun):
-		sun.shadow_enabled = false
-	if is_instance_valid(fill_light):
-		fill_light.light_energy = 0.45
-	if is_instance_valid(game_viewport):
-		game_viewport.msaa_3d = Viewport.MSAA_DISABLED
 
 func _sync_viewport_render_mode() -> void:
 	if not is_instance_valid(game_viewport):
@@ -2208,9 +2194,7 @@ func _mesh(parent: Node3D, primitive: PrimitiveMesh, pos: Vector3, scale_value: 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := BoxMesh.new()
 	shape.size = size
-	var node := _mesh(parent, shape, pos, Vector3.ONE, color)
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return node
+	return _mesh(parent, shape, pos, Vector3.ONE, color)
 
 func _sphere(parent: Node3D, pos: Vector3, scale_value: Vector3, color: Color) -> MeshInstance3D:
 	var shape := SphereMesh.new()
