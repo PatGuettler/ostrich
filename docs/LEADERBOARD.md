@@ -16,7 +16,7 @@ On Android, PGS handles platform authentication and opens Google's native all-us
 1. In Play Console, create/link the Play Games Services project for `com.grapegames.ostrichdash`.
 2. Add the release app credential with the correct package and signing certificate SHA-1.
 3. Create the `Longest Dash` leaderboard, set larger scores as better, and use meters as its display unit.
-4. Add tester accounts and publish the Play Games Services configuration before testing an internal release.
+4. Add tester accounts under **Play Games Services → Testers** (this list is separate from Play internal testing) and **publish** the Play Games Services configuration before testing an internal release. Sign-in alone can work while score posts still fail if the account is missing from that testers list or the Play App Signing OAuth credential is not linked under Play Games → Credentials.
 5. Save the numeric Games project ID and generated leaderboard ID as GitHub Actions secrets:
    - `OSTRICH_DASH_PLAY_GAMES_APP_ID`
    - `OSTRICH_DASH_LEADERBOARD_ID`

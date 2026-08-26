@@ -1086,6 +1086,7 @@ func _show_results() -> void:
 	shield_active = false
 	_stop_power_effect()
 	last_result = GameManager.finish_run(distance, run_feathers, current_biome)
+	_ensure_leaderboard_feedback_connected()
 	LeaderboardService.submit_longest_dash(int(distance))
 	if last_result.new_best:
 		result_title.text = "NEW PERSONAL BEST!"
@@ -2696,8 +2697,10 @@ func _refresh_shop_navigation() -> void:
 	shop_page_label.text = "PAGE %d OF %d  •  SWIPE" % [current_page, page_count]
 
 func _show_global_scores() -> void:
-	if not LeaderboardService.sign_in_failed.is_connected(_on_play_games_sign_in_failed):
-		LeaderboardService.sign_in_failed.connect(_on_play_games_sign_in_failed)
+	_ensure_leaderboard_feedback_connected()
+	# Re-post personal best whenever the board is opened so earlier missed
+	# submits (unsigned-in runs) still land after sign-in works.
+	LeaderboardService.submit_longest_dash(int(GameManager.best_distance))
 	match LeaderboardService.show_global_scores():
 		"":
 			pass
@@ -2708,8 +2711,25 @@ func _show_global_scores() -> void:
 		_:
 			_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
 
+func _ensure_leaderboard_feedback_connected() -> void:
+	if not LeaderboardService.sign_in_failed.is_connected(_on_play_games_sign_in_failed):
+		LeaderboardService.sign_in_failed.connect(_on_play_games_sign_in_failed)
+	if not LeaderboardService.score_queued.is_connected(_on_leaderboard_score_queued):
+		LeaderboardService.score_queued.connect(_on_leaderboard_score_queued)
+	if not LeaderboardService.score_submit_finished.is_connected(_on_leaderboard_score_submit_finished):
+		LeaderboardService.score_submit_finished.connect(_on_leaderboard_score_submit_finished)
+
 func _on_play_games_sign_in_failed() -> void:
 	_show_toast("PLAY GAMES SIGN-IN FAILED — CHECK SHA-1 AND TESTERS")
+
+func _on_leaderboard_score_queued(meters: int) -> void:
+	_show_toast("SIGNED OUT — TAP GLOBAL SCORES TO POST %d m" % meters)
+
+func _on_leaderboard_score_submit_finished(success: bool, meters: int) -> void:
+	if success:
+		_show_toast("POSTED %d m TO GLOBAL SCORES" % meters)
+	else:
+		_show_toast("COULD NOT POST %d m — CHECK PLAY GAMES TESTERS" % meters)
 
 func _rebuild_shop_cards() -> void:
 	for child in shop_cards.get_children():
