@@ -31,6 +31,37 @@ const BODY_TEXTURE_PATHS := [
 	"res://assets/generated/gameplay/runner_classic_body_back.png",
 	"res://assets/generated/gameplay/runner_midnight_body_back.png",
 ]
+const DUCK_TEXTURE_PATHS := [
+	"res://assets/generated/gameplay/runner_classic_duck_back.png",
+	"res://assets/generated/gameplay/runner_midnight_duck_back.png",
+	"res://assets/generated/gameplay/runner_golden_duck_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_duck_back.png",
+	"res://assets/generated/gameplay/runner_midnight_duck_back.png",
+	"res://assets/generated/gameplay/runner_classic_duck_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_duck_back.png",
+	"res://assets/generated/gameplay/runner_classic_duck_back.png",
+	"res://assets/generated/gameplay/runner_midnight_duck_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_duck_back.png",
+	"res://assets/generated/gameplay/runner_classic_duck_back.png",
+	"res://assets/generated/gameplay/runner_midnight_duck_back.png",
+]
+const JUMP_TEXTURE_PATHS := [
+	"res://assets/generated/gameplay/runner_classic_jump_back.png",
+	"res://assets/generated/gameplay/runner_midnight_jump_back.png",
+	"res://assets/generated/gameplay/runner_golden_jump_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_jump_back.png",
+	"res://assets/generated/gameplay/runner_midnight_jump_back.png",
+	"res://assets/generated/gameplay/runner_classic_jump_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_jump_back.png",
+	"res://assets/generated/gameplay/runner_classic_jump_back.png",
+	"res://assets/generated/gameplay/runner_midnight_jump_back.png",
+	"res://assets/generated/gameplay/runner_bubblegum_jump_back.png",
+	"res://assets/generated/gameplay/runner_classic_jump_back.png",
+	"res://assets/generated/gameplay/runner_midnight_jump_back.png",
+]
+# Each generated crouch has a slightly different amount of transparent space
+# beneath its shoes. These authored centers keep every pair planted on the track.
+const DUCK_POSE_Y := [1.48, 1.62, 1.40, 1.60, 1.62, 1.48, 1.60, 1.48, 1.62, 1.60, 1.48, 1.62]
 const RUN_LEG_SHEET_PATH := "res://assets/generated/gameplay/runner_classic_legs_run_sheet.png"
 
 var lane := 1
@@ -55,8 +86,13 @@ var left_wing: Node3D
 var right_wing: Node3D
 var character_sprite: Sprite3D
 var run_leg_sprite: Sprite3D
+var duck_sprite: Sprite3D
+var jump_sprite: Sprite3D
 var ground_shadow: MeshInstance3D
 var current_skin_index := 0
+var current_art_tint := Color.WHITE
+var duck_pose_blend := 0.0
+var jump_pose_blend := 0.0
 var visor_parts: Array[MeshInstance3D] = []
 var dark_parts: Array[MeshInstance3D] = []
 var accent_parts: Array[MeshInstance3D] = []
@@ -82,6 +118,12 @@ func reset_player() -> void:
 	character_sprite.position = Vector3(0.0, 2.53, -0.08)
 	character_sprite.rotation = Vector3.ZERO
 	character_sprite.scale = Vector3.ONE
+	duck_pose_blend = 0.0
+	jump_pose_blend = 0.0
+	if is_instance_valid(duck_sprite):
+		duck_sprite.visible = false
+	if is_instance_valid(jump_sprite):
+		jump_sprite.visible = false
 	_set_layered_runner_visible(true)
 	_reset_run_cycle()
 	visible = true
@@ -114,7 +156,8 @@ func step(delta: float, gravity_scale: float = 1.0) -> void:
 		duck_timer -= delta
 		if duck_timer <= 0.0:
 			ducking = false
-	_animate_run()
+	_update_ground_shadow()
+	_animate_run(delta)
 
 func move_lane(direction: int) -> void:
 	if active and not stunned:
@@ -132,7 +175,7 @@ func jump(max_jumps: int = 1) -> bool:
 func duck() -> void:
 	if active and not stunned and not jumping:
 		ducking = true
-		duck_timer = 0.72
+		duck_timer = 0.86
 
 func trigger_spin() -> void:
 	if stunned:
@@ -252,10 +295,13 @@ func _bar_flip_animation(delta: float) -> void:
 		character_sprite.scale = Vector3(1.12, 0.84, 1.0)
 		crash_finished.emit()
 
-func _animate_run() -> void:
+func _animate_run(delta: float = 1.0 / 60.0) -> void:
 	var pace := run_clock * 12.0
 	var swing := sin(pace) * 0.58
 	var bounce := absf(sin(pace)) * 0.10
+	duck_pose_blend = move_toward(duck_pose_blend, 1.0 if ducking else 0.0, delta * (12.0 if ducking else 9.0))
+	jump_pose_blend = move_toward(jump_pose_blend, 1.0 if jumping else 0.0, delta * (14.0 if jumping else 10.0))
+	var authored_pose_blend := maxf(duck_pose_blend, jump_pose_blend)
 	left_leg.rotation.x = swing
 	right_leg.rotation.x = -swing
 	# Six authored poses replace the old rigid cutout rotation. Advancing the
@@ -267,20 +313,36 @@ func _animate_run() -> void:
 		run_leg_sprite.position.y = 1.15 + bounce
 		run_leg_sprite.rotation.z = sin(pace) * 0.018
 		run_leg_sprite.scale = Vector3(1.0 + bounce * 0.08, 1.0 - bounce * 0.04, 1.0)
+		run_leg_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 - authored_pose_blend)
 	left_wing.rotation.z = -0.35 + sin(pace) * 0.12
 	right_wing.rotation.z = 0.35 - sin(pace) * 0.12
 	body.position.y = 2.55 + bounce
 	character_sprite.position.y = 2.53 + bounce
 	character_sprite.rotation.z = sin(pace) * 0.018
 	character_sprite.scale = Vector3(1.0 + absf(sin(pace)) * 0.018, 1.0 - absf(sin(pace)) * 0.012, 1.0)
+	character_sprite.modulate = Color(current_art_tint.r, current_art_tint.g, current_art_tint.b, 1.0 - authored_pose_blend)
 	visual.rotation.z = lerpf(visual.rotation.z, (LANES[lane] - position.x) * -0.075, 0.2)
+
+	duck_sprite.visible = duck_pose_blend > 0.01
+	duck_sprite.position = Vector3(0.0, DUCK_POSE_Y[current_skin_index] + bounce * 0.12, -0.055)
+	duck_sprite.rotation.z = sin(pace * 0.5) * 0.012
+	duck_sprite.scale = Vector3(1.0 + bounce * 0.025, 1.0 - bounce * 0.018, 1.0)
+	duck_sprite.modulate = Color(current_art_tint.r, current_art_tint.g, current_art_tint.b, duck_pose_blend)
+
+	jump_sprite.visible = jump_pose_blend > 0.01
+	jump_sprite.position = Vector3(0.0, 2.44 + sin(run_clock * 5.0) * 0.025, -0.05)
+	jump_sprite.rotation.z = lerpf(0.0, (LANES[lane] - position.x) * -0.045, jump_pose_blend)
+	var tuck := clampf(position.y / 1.4, 0.0, 1.0)
+	jump_sprite.scale = Vector3(1.0 + tuck * 0.035, 1.0 - tuck * 0.025, 1.0)
+	jump_sprite.modulate = Color(current_art_tint.r, current_art_tint.g, current_art_tint.b, jump_pose_blend)
 	if ducking:
 		neck.scale.y = lerpf(neck.scale.y, 0.34, 0.35)
 		neck.rotation.x = lerpf(neck.rotation.x, -0.92, 0.3)
 		head.rotation.x = lerpf(head.rotation.x, 0.7, 0.3)
 		body.scale.y = lerpf(body.scale.y, 0.78, 0.3)
-		character_sprite.scale.y = lerpf(character_sprite.scale.y, 0.72, 0.3)
-		character_sprite.position.y = lerpf(character_sprite.position.y, 1.95, 0.3)
+		# The hidden procedural rig follows the same anatomy as the authored pose,
+		# while the rendered plate shows the real S-curved neck and bent knees.
+		character_sprite.position.y = lerpf(character_sprite.position.y, 2.15, 0.3)
 		if is_instance_valid(run_leg_sprite):
 			run_leg_sprite.position.y = lerpf(run_leg_sprite.position.y, 0.82 + bounce * 0.35, 0.3)
 	else:
@@ -288,6 +350,20 @@ func _animate_run() -> void:
 		neck.rotation.x = lerpf(neck.rotation.x, sin(pace * 0.5) * 0.025, 0.25)
 		head.rotation.x = lerpf(head.rotation.x, sin(pace * 0.5) * -0.045, 0.2)
 		body.scale.y = lerpf(body.scale.y, 1.0, 0.3)
+
+func _update_ground_shadow() -> void:
+	if not is_instance_valid(ground_shadow):
+		return
+	ground_shadow.global_position = Vector3(global_position.x, 0.055, global_position.z + 0.15)
+	var air_amount := clampf(position.y / 2.5, 0.0, 1.0)
+	var shadow_scale := lerpf(1.0, 0.54, air_amount)
+	if ducking:
+		ground_shadow.scale = Vector3(1.14, 0.82, 1.0)
+	else:
+		ground_shadow.scale = Vector3(shadow_scale, shadow_scale, 1.0)
+	var shadow_material := ground_shadow.material_override as StandardMaterial3D
+	if shadow_material != null:
+		shadow_material.albedo_color.a = lerpf(0.32, 0.10, air_amount)
 
 func _idle_animation(delta: float) -> void:
 	run_clock += delta
@@ -302,6 +378,10 @@ func _idle_animation(delta: float) -> void:
 		run_leg_sprite.position.y = lerpf(run_leg_sprite.position.y, 1.15, delta * 7.0)
 		run_leg_sprite.rotation.z = lerpf(run_leg_sprite.rotation.z, 0.0, delta * 7.0)
 		run_leg_sprite.scale = run_leg_sprite.scale.lerp(Vector3.ONE, delta * 7.0)
+	if is_instance_valid(duck_sprite):
+		duck_sprite.visible = false
+	if is_instance_valid(jump_sprite):
+		jump_sprite.visible = false
 
 func apply_skin(index: int) -> void:
 	var palettes := [
@@ -335,9 +415,16 @@ func apply_skin(index: int) -> void:
 	current_skin_index = clampi(index, 0, palettes.size() - 1)
 	var p: Array = palettes[current_skin_index]
 	var art_tint: Color = art_tints[current_skin_index]
+	current_art_tint = art_tint
 	if is_instance_valid(character_sprite):
 		character_sprite.texture = load(SKIN_TEXTURE_PATHS[current_skin_index] if stunned else BODY_TEXTURE_PATHS[current_skin_index])
 		character_sprite.modulate = art_tint
+	if is_instance_valid(duck_sprite):
+		duck_sprite.texture = load(DUCK_TEXTURE_PATHS[current_skin_index])
+		duck_sprite.modulate = Color(art_tint.r, art_tint.g, art_tint.b, duck_pose_blend)
+	if is_instance_valid(jump_sprite):
+		jump_sprite.texture = load(JUMP_TEXTURE_PATHS[current_skin_index])
+		jump_sprite.modulate = Color(art_tint.r, art_tint.g, art_tint.b, jump_pose_blend)
 	if is_instance_valid(run_leg_sprite):
 		run_leg_sprite.modulate = Color.WHITE
 		var leg_material := run_leg_sprite.material_override as ShaderMaterial
@@ -447,6 +534,17 @@ func _build_ostrich() -> void:
 	character_sprite.texture = load(BODY_TEXTURE_PATHS[0])
 	character_sprite.render_priority = 4
 
+	duck_sprite = _make_authored_pose_sprite(
+		"GeneratedNeckFoldDuckPose",
+		DUCK_TEXTURE_PATHS[0],
+		Vector3(0.0, DUCK_POSE_Y[0], -0.055)
+	)
+	jump_sprite = _make_authored_pose_sprite(
+		"GeneratedAirborneJumpPose",
+		JUMP_TEXTURE_PATHS[0],
+		Vector3(0.0, 2.44, -0.05)
+	)
+
 	var shadow_mesh := QuadMesh.new()
 	shadow_mesh.size = Vector2(2.25, 1.18)
 	var shadow_material := StandardMaterial3D.new()
@@ -462,6 +560,23 @@ func _build_ostrich() -> void:
 	ground_shadow.rotation_degrees.x = -90.0
 	ground_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ground_shadow)
+	ground_shadow.top_level = true
+	_update_ground_shadow()
+
+func _make_authored_pose_sprite(sprite_name: String, texture_path: String, pose_position: Vector3) -> Sprite3D:
+	var pose_sprite := Sprite3D.new()
+	pose_sprite.name = sprite_name
+	pose_sprite.texture = load(texture_path)
+	pose_sprite.position = pose_position
+	pose_sprite.pixel_size = 0.00335
+	pose_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	pose_sprite.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	pose_sprite.shaded = false
+	pose_sprite.double_sided = true
+	pose_sprite.render_priority = 5
+	pose_sprite.visible = false
+	visual.add_child(pose_sprite)
+	return pose_sprite
 
 func _make_leg(parent: Node3D, x: float) -> Node3D:
 	var pivot := Node3D.new()
@@ -507,10 +622,18 @@ func _set_layered_runner_visible(enabled: bool) -> void:
 	run_leg_sprite.visible = enabled
 	if enabled:
 		character_sprite.texture = load(BODY_TEXTURE_PATHS[current_skin_index])
+	else:
+		if is_instance_valid(duck_sprite):
+			duck_sprite.visible = false
+		if is_instance_valid(jump_sprite):
+			jump_sprite.visible = false
 
 func _prepare_crash_plate() -> void:
+	duck_pose_blend = 0.0
+	jump_pose_blend = 0.0
 	_set_layered_runner_visible(false)
 	character_sprite.texture = load(SKIN_TEXTURE_PATHS[current_skin_index])
+	character_sprite.modulate = current_art_tint
 
 func _material(color: Color, roughness := 0.65, metallic := 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()

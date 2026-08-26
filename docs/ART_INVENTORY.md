@@ -52,7 +52,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | Royal Peacock skin | None | Premium teal/royal-purple portrait plus a jewel-toned gameplay color treatment |
 | Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich split into a body, two independently animated stride layers, and a planted shadow |
 | Run motion | Primitive leg/wing swing | Generated six-frame rear-view leg/shoe sprite sheet with contact, push-off, passing, and mirrored stride poses, plus body bob, lean, and shadow |
-| Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
+| Jump/duck | Rigid sprite lift/squash that appeared to pass through hazards | Dedicated transparent rear-view avoidance poses: the jump tucks both feet fully above the hurdle and leaves a planted shrinking ground shadow; the duck bends both knees, plants both shoes, and folds the long neck into a pronounced S-curve beneath the gate. Crossfades hide the ordinary body/leg layers so duplicate limbs never show, while the collision capsule changes with the visible pose. |
 | Trip/gate flip/spin | Whole primitive rig rotation | Forward stumble for low hits, one neck-pivot revolution over gates, and a separate airborne spin using finished character art |
 
 ## Obstacles and pickups
@@ -169,11 +169,13 @@ The integration uses a small number of high-resolution transparent plates and at
 20. `runner_midnight_body_back.png`
 21. `runner_golden_body_back.png`
 22. `runner_bubblegum_body_back.png`
-23. `obstacle_atlas.png` — 3×2 cells
-24. `reward_power_atlas.png` — 3×2 cells
-25. `biome_prop_atlas.png` — 3×2 cells
-26. `effects_medals_atlas.png` — 3×2 cells
-27. `surface_atlas.png` — 3×2 cells
+23. `runner_classic_duck_back.png`, `runner_midnight_duck_back.png`, `runner_golden_duck_back.png`, and `runner_bubblegum_duck_back.png`
+24. `runner_classic_jump_back.png`, `runner_midnight_jump_back.png`, `runner_golden_jump_back.png`, and `runner_bubblegum_jump_back.png`
+25. `obstacle_atlas.png` — 3×2 cells
+26. `reward_power_atlas.png` — 3×2 cells
+27. `biome_prop_atlas.png` — 3×2 cells
+28. `effects_medals_atlas.png` — 3×2 cells
+29. `surface_atlas.png` — 3×2 cells
 
 The six original surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses twelve separately generated production materials in `gameplay/surfaces/hd/`, including savanna earth, crystal floor, and moon dust, because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 

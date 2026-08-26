@@ -136,6 +136,8 @@ func _run() -> void:
 	required_art.append_array(game.RUNNER_ART_PATHS)
 	required_art.append_array(game.player.SKIN_TEXTURE_PATHS)
 	required_art.append_array(game.player.BODY_TEXTURE_PATHS)
+	required_art.append_array(game.player.DUCK_TEXTURE_PATHS)
+	required_art.append_array(game.player.JUMP_TEXTURE_PATHS)
 	required_art.append_array([
 		game.RIVAL_ART_PATH,
 		game.OBSTACLE_ATLAS_PATH,
@@ -186,6 +188,52 @@ func _run() -> void:
 		push_error("The six-pose runner leg sheet is missing, malformed, or not transparent")
 		quit(1)
 		return
+	for pose_path in game.player.DUCK_TEXTURE_PATHS + game.player.JUMP_TEXTURE_PATHS:
+		var pose_texture := load(pose_path) as Texture2D
+		var pose_image := pose_texture.get_image() if pose_texture != null else null
+		if pose_texture == null or pose_image == null or pose_image.detect_alpha() == Image.ALPHA_NONE:
+			push_error("Authored jump/duck pose is missing transparent production art: %s" % pose_path)
+			quit(1)
+			return
+	if (
+		not is_instance_valid(game.player.duck_sprite)
+		or not is_instance_valid(game.player.jump_sprite)
+		or not game.player.ground_shadow.top_level
+	):
+		push_error("The player is missing its authored avoidance poses or grounded jump shadow")
+		quit(1)
+		return
+	game.player.reset_player()
+	game.player.duck()
+	for pose_step in range(5):
+		game.player._animate_run(0.1)
+	if (
+		not game.player.duck_sprite.visible
+		or game.player.duck_pose_blend < 0.99
+		or game.player.run_leg_sprite.modulate.a > 0.01
+		or game.player.character_sprite.modulate.a > 0.01
+		or game.player.neck.rotation.x > -0.7
+		or game.player.collision_height() > 2.0
+	):
+		push_error("Duck input does not produce the low, neck-folded authored crouch")
+		quit(1)
+		return
+	game.player.reset_player()
+	game.player.jump()
+	game.player.step(0.1)
+	game.player._animate_run(0.1)
+	if (
+		not game.player.jump_sprite.visible
+		or game.player.jump_pose_blend < 0.99
+		or game.player.run_leg_sprite.modulate.a > 0.01
+		or game.player.position.y < 0.7
+		or absf(game.player.ground_shadow.global_position.y - 0.055) > 0.02
+		or game.player.ground_shadow.scale.x > 0.9
+	):
+		push_error("Jump input does not show the tucked airborne pose with a planted shrinking shadow")
+		quit(1)
+		return
+	game.player.reset_player()
 	if (
 		not is_instance_valid(game.menu_logo)
 		or game.menu_logo.texture == null

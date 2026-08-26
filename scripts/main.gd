@@ -235,11 +235,20 @@ var result_home_button: Button
 var result_leaderboard_button: Button
 var scores_layer: Control
 var scores_panel: PanelContainer
+var scores_margin: MarginContainer
+var scores_box: VBoxContainer
 var scores_title: Label
+var scores_status_pill: PanelContainer
 var scores_status: Label
+var scores_my_card: PanelContainer
+var scores_my_title: Label
+var scores_my_value: Label
+var scores_scroll: ScrollContainer
 var scores_list: VBoxContainer
+var scores_actions: HBoxContainer
 var scores_native_button: Button
 var scores_back_button: Button
+var _current_scores_rows: Array = []
 var shop_layer: Control
 var shop_panel: PanelContainer
 var shop_margin: MarginContainer
@@ -1548,13 +1557,23 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_position_center_panel(result_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1320.0, content_size.y - 96.0)))
 		_position_center_panel(shop_panel, Vector2(minf(1120.0, content_size.x - 64.0), minf(1640.0, content_size.y - 96.0)))
 		_position_center_panel(pause_panel, Vector2(minf(440.0, content_size.x - 32.0), 340.0))
-		_position_center_panel(scores_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1320.0, content_size.y - 96.0)))
+		_position_center_panel(scores_panel, Vector2(minf(1080.0, content_size.x - 56.0), minf(1360.0, content_size.y - 72.0)))
+		if is_instance_valid(scores_margin):
+			scores_margin.add_theme_constant_override("margin_left", 36)
+			scores_margin.add_theme_constant_override("margin_right", 36)
+			scores_margin.add_theme_constant_override("margin_top", 32)
+			scores_margin.add_theme_constant_override("margin_bottom", 30)
+		if is_instance_valid(scores_box):
+			scores_box.add_theme_constant_override("separation", 14)
 		if is_instance_valid(scores_title):
-			_set_font_size(scores_title, 40)
-			_set_font_size(scores_status, 22)
+			_set_font_size(scores_title, 38)
+			_set_font_size(scores_status, 20)
+			if is_instance_valid(scores_my_title):
+				_set_font_size(scores_my_title, 22)
+				_set_font_size(scores_my_value, 26)
 			_set_font_size(scores_native_button, 22)
 			_set_font_size(scores_back_button, 26)
-			scores_native_button.custom_minimum_size.y = 72.0
+			scores_native_button.custom_minimum_size.y = 80.0
 			scores_back_button.custom_minimum_size.y = 84.0
 		hud_top_panel.offset_left = 18.0
 		hud_top_panel.offset_top = 16.0
@@ -1617,13 +1636,23 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_position_center_panel(shop_panel, Vector2(minf(980.0, content_size.x - 32.0), minf(620.0, content_size.y - 24.0)))
 		_position_center_panel(pause_panel, Vector2(420.0, 320.0))
 		_position_center_panel(scores_panel, Vector2(minf(980.0, content_size.x - 36.0), minf(620.0, content_size.y - 28.0)))
+		if is_instance_valid(scores_margin):
+			scores_margin.add_theme_constant_override("margin_left", 26)
+			scores_margin.add_theme_constant_override("margin_right", 26)
+			scores_margin.add_theme_constant_override("margin_top", 18)
+			scores_margin.add_theme_constant_override("margin_bottom", 18)
+		if is_instance_valid(scores_box):
+			scores_box.add_theme_constant_override("separation", 8)
 		if is_instance_valid(scores_title):
-			_set_font_size(scores_title, 28)
-			_set_font_size(scores_status, 15)
-			_set_font_size(scores_native_button, 13)
+			_set_font_size(scores_title, 26)
+			_set_font_size(scores_status, 14)
+			if is_instance_valid(scores_my_title):
+				_set_font_size(scores_my_title, 16)
+				_set_font_size(scores_my_value, 18)
+			_set_font_size(scores_native_button, 14)
 			_set_font_size(scores_back_button, 16)
-			scores_native_button.custom_minimum_size.y = 46.0
-			scores_back_button.custom_minimum_size.y = 50.0
+			scores_native_button.custom_minimum_size.y = 48.0
+			scores_back_button.custom_minimum_size.y = 52.0
 		hud_top_panel.offset_left = 26.0
 		hud_top_panel.offset_top = 20.0
 		hud_top_panel.offset_right = -26.0
@@ -1652,6 +1681,8 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_position_top_center(toast_label, 560.0, 196.0, 58.0)
 	_apply_shop_layout()
 	_apply_result_layout()
+	if is_instance_valid(scores_layer) and scores_layer.visible and not _current_scores_rows.is_empty():
+		_populate_scores_list(_current_scores_rows)
 
 	if mobile_mode:
 		control_help_label.text = "SWIPE TO MOVE  •  SWIPE UP TO JUMP  •  SWIPE DOWN TO DUCK"
@@ -2688,32 +2719,88 @@ func _build_ui() -> void:
 	scores_layer = _modal_layer(ui_content_root)
 	scores_layer.visible = false
 	scores_panel = _center_panel(scores_layer, Vector2(980, 720))
-	scores_panel.add_theme_stylebox_override("panel", _panel_style(Color("#fff3d8"), Color("#35d5c5"), 4, 28))
-	var scores_box := _modal_box(scores_panel)
-	scores_title = _label("LONGEST DASH", 34, Color("#17385d"))
+	var scores_panel_style := _panel_style(Color("#fffdfa"), Color("#20b2aa"), 4, 34)
+	scores_panel_style.shadow_color = Color(0.04, 0.08, 0.16, 0.55)
+	scores_panel_style.shadow_size = 28
+	scores_panel_style.shadow_offset = Vector2(0, 10)
+	scores_panel.add_theme_stylebox_override("panel", scores_panel_style)
+
+	scores_margin = MarginContainer.new()
+	scores_margin.add_theme_constant_override("margin_left", 36)
+	scores_margin.add_theme_constant_override("margin_right", 36)
+	scores_margin.add_theme_constant_override("margin_top", 32)
+	scores_margin.add_theme_constant_override("margin_bottom", 30)
+	scores_panel.add_child(scores_margin)
+
+	scores_box = VBoxContainer.new()
+	scores_box.add_theme_constant_override("separation", 14)
+	scores_margin.add_child(scores_box)
+
+	scores_title = _label("LONGEST DASH", 34, Color("#0f2744"))
 	scores_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_set_bold(scores_title)
 	scores_box.add_child(scores_title)
-	scores_status = _label("ALL-TIME PUBLIC RANKS", 16, Color("#385f8f"))
+
+	scores_status_pill = PanelContainer.new()
+	scores_status_pill.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	scores_status_pill.add_theme_stylebox_override("panel", _panel_style(Color("#e3f7f5"), Color("#38d2c4"), 2, 14))
+	scores_box.add_child(scores_status_pill)
+	var status_margin := MarginContainer.new()
+	status_margin.add_theme_constant_override("margin_left", 20)
+	status_margin.add_theme_constant_override("margin_right", 20)
+	status_margin.add_theme_constant_override("margin_top", 6)
+	status_margin.add_theme_constant_override("margin_bottom", 6)
+	scores_status_pill.add_child(status_margin)
+	scores_status = _label("🏆 ALL-TIME PUBLIC RANKS", 16, Color("#0d696d"))
 	scores_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	scores_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	scores_box.add_child(scores_status)
-	var scores_scroll := ScrollContainer.new()
+	_set_bold(scores_status)
+	status_margin.add_child(scores_status)
+
+	# Dedicated personal best spotlight banner
+	scores_my_card = PanelContainer.new()
+	var my_card_style := _panel_style(Color("#fefbf0"), Color("#f59e0b"), 3, 20)
+	my_card_style.shadow_color = Color(0.96, 0.62, 0.04, 0.18)
+	my_card_style.shadow_size = 12
+	my_card_style.shadow_offset = Vector2(0, 4)
+	scores_my_card.add_theme_stylebox_override("panel", my_card_style)
+	scores_box.add_child(scores_my_card)
+	var my_margin := MarginContainer.new()
+	my_margin.add_theme_constant_override("margin_left", 20)
+	my_margin.add_theme_constant_override("margin_right", 24)
+	my_margin.add_theme_constant_override("margin_top", 10)
+	my_margin.add_theme_constant_override("margin_bottom", 10)
+	scores_my_card.add_child(my_margin)
+	var my_box := HBoxContainer.new()
+	my_box.add_theme_constant_override("separation", 12)
+	my_margin.add_child(my_box)
+	scores_my_title = _label("👑 YOUR PERSONAL BEST", 20, Color("#92400e"))
+	_set_bold(scores_my_title)
+	scores_my_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	my_box.add_child(scores_my_title)
+	scores_my_value = _label("0 m", 22, Color("#d97706"))
+	_set_bold(scores_my_value)
+	my_box.add_child(scores_my_value)
+
+	scores_scroll = ScrollContainer.new()
 	scores_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scores_scroll.custom_minimum_size.y = 320.0
 	scores_box.add_child(scores_scroll)
+
 	scores_list = VBoxContainer.new()
 	scores_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scores_list.add_theme_constant_override("separation", 8)
+	scores_list.add_theme_constant_override("separation", 10)
 	scores_scroll.add_child(scores_list)
-	var scores_actions := HBoxContainer.new()
-	scores_actions.add_theme_constant_override("separation", 10)
+
+	scores_actions = HBoxContainer.new()
+	scores_actions.add_theme_constant_override("separation", 14)
 	scores_box.add_child(scores_actions)
-	scores_native_button = _button("OPEN IN PLAY GAMES", Color("#16586b"), Color("#62e9db"), 14)
+
+	scores_native_button = _button("OPEN IN PLAY GAMES", Color("#0f766e"), Color("#2dd4bf"), 16)
 	scores_native_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scores_native_button.pressed.connect(_open_native_global_scores)
 	scores_actions.add_child(scores_native_button)
-	scores_back_button = _button("CLOSE", Color("#20aeb0"), Color("#7af0df"), 16)
+
+	scores_back_button = _button("CLOSE", Color("#0284c7"), Color("#38bdf8"), 18)
 	scores_back_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scores_back_button.pressed.connect(_hide_global_scores)
 	scores_actions.add_child(scores_back_button)
@@ -2852,6 +2939,10 @@ func _open_scores_panel(status_text: String) -> void:
 		return
 	scores_layer.visible = true
 	scores_status.text = status_text
+	if is_instance_valid(scores_my_card):
+		scores_my_card.visible = GameManager.best_distance > 0
+	if is_instance_valid(scores_my_value):
+		scores_my_value.text = "%s m" % _format_number(int(GameManager.best_distance))
 	for child in scores_list.get_children():
 		child.queue_free()
 
@@ -2876,38 +2967,164 @@ func _fill_local_scores_fallback(status_text: String) -> void:
 			"display_rank": "1",
 			"name": "YOU (LOCAL BEST)",
 			"score": int(GameManager.best_distance),
-			"display_score": "%d m" % int(GameManager.best_distance),
+			"display_score": "%s m" % _format_number(int(GameManager.best_distance)),
 		})
 	_populate_scores_list(local_rows)
 
 func _populate_scores_list(rows: Array) -> void:
+	_current_scores_rows = rows
 	for child in scores_list.get_children():
 		child.queue_free()
 	if rows.is_empty():
-		var empty := _label("NO PUBLIC SCORES YET — TURN ON GAME ACTIVITY IN PLAY GAMES PRIVACY", 15, Color("#385f8f"))
-		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		scores_list.add_child(empty)
+		var empty_panel := PanelContainer.new()
+		empty_panel.add_theme_stylebox_override("panel", _panel_style(Color("#f8fafc"), Color("#e2e8f0"), 2, 22))
+		empty_panel.custom_minimum_size.y = 200.0 if portrait_layout else 110.0
+		scores_list.add_child(empty_panel)
+		var empty_margin := MarginContainer.new()
+		for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+			empty_margin.add_theme_constant_override(side, 24 if portrait_layout else 16)
+		empty_panel.add_child(empty_margin)
+		var empty_box := VBoxContainer.new()
+		empty_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		empty_box.add_theme_constant_override("separation", 10 if portrait_layout else 6)
+		empty_margin.add_child(empty_box)
+		var empty_title := _label("🏆 NO PUBLIC SCORES RECORDED YET", 24 if portrait_layout else 16, Color("#1e293b"))
+		empty_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_set_bold(empty_title)
+		empty_box.add_child(empty_title)
+		var empty_desc := _label("Dash down the track to set your record!\nMake sure 'Game Activity' is set to visible in your Google Play Games settings to appear on public boards.", 18 if portrait_layout else 13, Color("#64748b"))
+		empty_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_box.add_child(empty_desc)
 		return
+
+	var row_h := 88.0 if portrait_layout else 56.0
+	var pad_x := 18 if portrait_layout else 12
+	var pad_y := 12 if portrait_layout else 8
+	var badge_size := Vector2(62, 62) if portrait_layout else Vector2(40, 40)
+	var avatar_size := Vector2(60, 60) if portrait_layout else Vector2(38, 38)
+	var rank_font_size := 24 if portrait_layout else 15
+	var name_font_size := 26 if portrait_layout else 17
+	var tag_font_size := 17 if portrait_layout else 12
+	var score_font_size := 28 if portrait_layout else 18
+
 	for row in rows:
+		var rank_num := int(row.get("rank", 0))
+		var raw_score := int(row.get("score", 0))
+		var display_name := str(row.get("name", "PLAYER"))
+		var is_user := "YOU" in display_name.to_upper() or (rank_num == 1 and GameManager.best_distance > 0 and raw_score == int(GameManager.best_distance))
+
 		var row_panel := PanelContainer.new()
-		row_panel.add_theme_stylebox_override("panel", _panel_style(Color("#fffaf0"), Color("#35d5c5"), 2, 16))
+		row_panel.custom_minimum_size.y = row_h
+		var row_style: StyleBoxFlat
+		if is_user:
+			row_style = _panel_style(Color("#f0fdf4"), Color("#10b981"), 3, 22)
+			row_style.shadow_color = Color(0.06, 0.73, 0.51, 0.18)
+			row_style.shadow_size = 10
+		elif rank_num == 1:
+			row_style = _panel_style(Color("#fffdf0"), Color("#f59e0b"), 3, 22)
+			row_style.shadow_color = Color(0.96, 0.62, 0.04, 0.22)
+			row_style.shadow_size = 12
+		elif rank_num == 2:
+			row_style = _panel_style(Color("#f8fafc"), Color("#94a3b8"), 3, 22)
+			row_style.shadow_color = Color(0.58, 0.64, 0.72, 0.15)
+			row_style.shadow_size = 8
+		elif rank_num == 3:
+			row_style = _panel_style(Color("#fff7ed"), Color("#f97316"), 3, 22)
+			row_style.shadow_color = Color(0.98, 0.45, 0.09, 0.15)
+			row_style.shadow_size = 8
+		else:
+			row_style = _panel_style(Color("#ffffff"), Color("#e2e8f0"), 2, 20)
+		row_panel.add_theme_stylebox_override("panel", row_style)
 		scores_list.add_child(row_panel)
+
+		var row_margin := MarginContainer.new()
+		row_margin.add_theme_constant_override("margin_left", pad_x)
+		row_margin.add_theme_constant_override("margin_right", pad_x + 6)
+		row_margin.add_theme_constant_override("margin_top", pad_y)
+		row_margin.add_theme_constant_override("margin_bottom", pad_y)
+		row_panel.add_child(row_margin)
+
 		var row_box := HBoxContainer.new()
-		row_box.add_theme_constant_override("separation", 12)
-		row_panel.add_child(row_box)
-		var rank_label := _label(str(row.get("display_rank", row.get("rank", ""))), 18, Color("#55378a"))
-		rank_label.custom_minimum_size.x = 56.0
+		row_box.add_theme_constant_override("separation", 14 if portrait_layout else 10)
+		row_margin.add_child(row_box)
+
+		# Rank Badge Pill
+		var rank_badge := PanelContainer.new()
+		rank_badge.custom_minimum_size = badge_size
+		var badge_style: StyleBoxFlat
+		var rank_text_color: Color
+		var rank_text := str(row.get("display_rank", ""))
+		if rank_text.is_empty():
+			rank_text = "%d" % rank_num
+		if rank_num == 1:
+			badge_style = _panel_style(Color("#fbbf24"), Color("#d97706"), 2, 16 if portrait_layout else 10)
+			rank_text_color = Color.WHITE
+			if not rank_text.begins_with("1"):
+				rank_text = "1st"
+		elif rank_num == 2:
+			badge_style = _panel_style(Color("#94a3b8"), Color("#64748b"), 2, 16 if portrait_layout else 10)
+			rank_text_color = Color.WHITE
+			if not rank_text.begins_with("2"):
+				rank_text = "2nd"
+		elif rank_num == 3:
+			badge_style = _panel_style(Color("#f97316"), Color("#ea580c"), 2, 16 if portrait_layout else 10)
+			rank_text_color = Color.WHITE
+			if not rank_text.begins_with("3"):
+				rank_text = "3rd"
+		else:
+			badge_style = _panel_style(Color("#f1f5f9"), Color("#cbd5e1"), 1, 14 if portrait_layout else 10)
+			rank_text_color = Color("#334155")
+		rank_badge.add_theme_stylebox_override("panel", badge_style)
+		row_box.add_child(rank_badge)
+
+		var rank_label := _label(rank_text, rank_font_size, rank_text_color)
+		rank_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rank_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_set_bold(rank_label)
-		row_box.add_child(rank_label)
-		var name_label := _label(str(row.get("name", "PLAYER")), 17, Color("#17385d"))
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		rank_badge.add_child(rank_label)
+
+		# Avatar bubble with runner skin icon
+		var avatar_panel := PanelContainer.new()
+		avatar_panel.custom_minimum_size = avatar_size
+		var skin_idx: int = GameManager.selected_skin if is_user else clampi(rank_num - 1, 0, RUNNER_ART_PATHS.size() - 1)
+		var avatar_style := _panel_style(Color("#e2e8f0"), Color.WHITE, 2, int(avatar_size.x * 0.5))
+		avatar_panel.add_theme_stylebox_override("panel", avatar_style)
+		row_box.add_child(avatar_panel)
+
+		var avatar_rect := TextureRect.new()
+		avatar_rect.texture = load(RUNNER_ART_PATHS[skin_idx])
+		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		avatar_panel.add_child(avatar_rect)
+
+		# Name & Subtitle Box
+		var info_box := VBoxContainer.new()
+		info_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		info_box.add_theme_constant_override("separation", 2)
+		row_box.add_child(info_box)
+
+		var name_label := _label(display_name, name_font_size, Color("#0f172a"))
 		name_label.clip_text = true
-		row_box.add_child(name_label)
+		_set_bold(name_label)
+		info_box.add_child(name_label)
+
+		var tag_text := "👑 ALL-TIME BEST" if rank_num == 1 else ("⭐ YOUR SCORE" if is_user else ("TOP 3 RACER" if rank_num <= 3 else "GLOBAL RUNNER"))
+		var tag_color := Color("#d97706") if rank_num == 1 else (Color("#059669") if is_user else Color("#64748b"))
+		var tag_label := _label(tag_text, tag_font_size, tag_color)
+		info_box.add_child(tag_label)
+
+		# Score Value
 		var score_text := str(row.get("display_score", ""))
-		if score_text.is_empty():
-			score_text = "%d m" % int(row.get("score", 0))
-		var score_label := _label(score_text, 18, Color("#e45875"))
+		if score_text.is_empty() or score_text.is_valid_int():
+			score_text = "%s m" % _format_number(raw_score)
+		elif not score_text.ends_with("m"):
+			score_text = "%s m" % score_text
+		var score_color := Color("#059669") if is_user else (Color("#d97706") if rank_num == 1 else Color("#e11d48"))
+		var score_label := _label(score_text, score_font_size, score_color)
+		score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		_set_bold(score_label)
 		row_box.add_child(score_label)
 

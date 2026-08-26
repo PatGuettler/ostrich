@@ -180,6 +180,12 @@ func _run() -> void:
 		await process_frame
 	_save_frame("results_landscape.png")
 	game.result_layer.visible = false
+	# Results intentionally freezes the gameplay SubViewport. Restart the run
+	# before the world-space audit frames, then pause gameplay without disabling
+	# rendering so obstacle/avoidance captures contain the actual 3D scene.
+	game._start_run()
+	game.state = game.GameState.PAUSED
+	game.pause_layer.visible = false
 	game._apply_biome(0, true)
 	game._apply_biome(1)
 	game._update_biome_transition(game.BIOME_TRANSITION_DURATION * 0.5)
@@ -204,6 +210,27 @@ func _run() -> void:
 	for i in range(8):
 		await process_frame
 	_save_frame("obstacles_special.png")
+	game._clear_run_objects()
+	game.player.visible = true
+	game.player.reset_player()
+	game._spawn_obstacle("wall", 1, -1.0)
+	game.player.jump()
+	game.player.position.y = 1.65
+	game.player._animate_run(1.0)
+	for i in range(4):
+		await process_frame
+	_save_frame("jump_avoids_hurdle.png")
+	game._clear_run_objects()
+	game.player.reset_player()
+	game._spawn_obstacle("bar", 1, -1.0)
+	game.player.duck()
+	game.player._animate_run(1.0)
+	for i in range(4):
+		await process_frame
+	_save_frame("duck_neck_fold_under_bar.png")
+	game._clear_run_objects()
+	game.player.reset_player()
+	game.player.visible = false
 	game._clear_run_objects()
 	game._spawn_all_lane_skill_row("jump", -8.0)
 	for i in range(8):

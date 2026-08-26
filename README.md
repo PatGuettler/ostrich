@@ -25,7 +25,7 @@ Controls:
 ## Included systems
 
 - 3-lane endless running with a smooth speed ramp
-- A generated six-pose rear-view leg-and-shoe run cycle with contact, push-off, and passing poses, plus jump, duck, lane switch, laptop arrow keys, and swipe-only mobile controls
+- A generated six-pose rear-view leg-and-shoe run cycle with contact, push-off, and passing poses, plus authored airborne jump poses with tucked feet and low duck poses with deeply bent knees and a visible S-curved neck; lane switching, laptop arrow keys, and swipe-only mobile controls
 - More breathable hazard spacing with occasional late-run two-lane patterns and clearly telegraphed three-lane skill rows that require a jump or duck, plus hurdles, walls, cones, drones, slippery patches, and independently animated rival runners
 - Mixed feather routes: most trails use clear lanes, while some cross hazards with high jump-feathers or low duck-feathers that reward committing to the correct move
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
