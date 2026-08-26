@@ -36,6 +36,7 @@ const RUN_LEG_SHEET_PATH := "res://assets/generated/gameplay/runner_classic_legs
 var lane := 1
 var jump_velocity := 0.0
 var jumping := false
+var jumps_used := 0
 var ducking := false
 var duck_timer := 0.0
 var stunned := false
@@ -69,6 +70,7 @@ func reset_player() -> void:
 	position = Vector3(0.0, 0.0, 0.0)
 	jump_velocity = 0.0
 	jumping = false
+	jumps_used = 0
 	ducking = false
 	duck_timer = 0.0
 	stunned = false
@@ -85,7 +87,7 @@ func reset_player() -> void:
 	visible = true
 	apply_skin(GameManager.selected_skin)
 
-func step(delta: float) -> void:
+func step(delta: float, gravity_scale: float = 1.0) -> void:
 	if not active:
 		_idle_animation(delta)
 		return
@@ -101,12 +103,13 @@ func step(delta: float) -> void:
 				_spin_animation(delta)
 		return
 	if jumping:
-		jump_velocity -= 24.0 * delta
+		jump_velocity -= 24.0 * gravity_scale * delta
 		position.y += jump_velocity * delta
 		if position.y <= 0.0:
 			position.y = 0.0
 			jumping = false
 			jump_velocity = 0.0
+			jumps_used = 0
 	if ducking:
 		duck_timer -= delta
 		if duck_timer <= 0.0:
@@ -117,11 +120,14 @@ func move_lane(direction: int) -> void:
 	if active and not stunned:
 		lane = clampi(lane + direction, 0, 2)
 
-func jump() -> void:
-	if active and not stunned and not jumping:
-		ducking = false
-		jumping = true
-		jump_velocity = 10.8
+func jump(max_jumps: int = 1) -> bool:
+	if not active or stunned or jumps_used >= max_jumps:
+		return false
+	ducking = false
+	jumping = true
+	jumps_used += 1
+	jump_velocity = 10.8 if jumps_used == 1 else 10.2
+	return true
 
 func duck() -> void:
 	if active and not stunned and not jumping:
@@ -136,6 +142,7 @@ func trigger_spin() -> void:
 	spin_time = 0.0
 	ducking = false
 	jumping = false
+	jumps_used = 0
 	jump_velocity = 0.0
 	_prepare_crash_plate()
 
@@ -147,6 +154,7 @@ func trigger_trip() -> void:
 	spin_time = 0.0
 	ducking = false
 	jumping = false
+	jumps_used = 0
 	jump_velocity = 0.0
 	_prepare_crash_plate()
 
@@ -158,6 +166,7 @@ func trigger_bar_flip() -> void:
 	spin_time = 0.0
 	ducking = false
 	jumping = false
+	jumps_used = 0
 	jump_velocity = 0.0
 	_prepare_crash_plate()
 

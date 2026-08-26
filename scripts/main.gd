@@ -13,6 +13,9 @@ const BIOMES := [
 	{"name": "Candy Carnival", "sky": Color("#77cff5"), "track": Color("#f45b91"), "ground": Color("#f7c6dc"), "accent": Color("#ffe66d")},
 	{"name": "Volcano Valley", "sky": Color("#d85d55"), "track": Color("#211d27"), "ground": Color("#3a2533"), "accent": Color("#ff7b3d")},
 	{"name": "Cloud Kingdom", "sky": Color("#a8dcff"), "track": Color("#7fc8ef"), "ground": Color("#e8f5ff"), "accent": Color("#ffd875")},
+	{"name": "Savanna Sunrise", "sky": Color("#efb45e"), "track": Color("#b85d2d"), "ground": Color("#c89a43"), "accent": Color("#21b5a8")},
+	{"name": "Crystal Caverns", "sky": Color("#2b174d"), "track": Color("#4b2d72"), "ground": Color("#24183f"), "accent": Color("#55e8e1")},
+	{"name": "Moonbase Marathon", "sky": Color("#071735"), "track": Color("#8ea9bd"), "ground": Color("#4c596b"), "accent": Color("#41d7ef")},
 ]
 const LANES := [-2.8, 0.0, 2.8]
 const BIOME_DISTANCE := 225.0
@@ -31,8 +34,8 @@ const ALL_LANES_SKILL_DISTANCE := 650.0
 const ALL_LANES_SKILL_CHANCE := 0.10
 const ALL_LANES_SKILL_MAX_CHANCE := 0.28
 const ALL_LANES_SKILL_RAMP_DISTANCE := 2200.0
-const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034, 0.0018, 0.0024, 0.0016]
-const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94, 0.86, 0.9, 0.82]
+const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034, 0.0018, 0.0024, 0.0016, 0.0020, 0.0030, 0.0017]
+const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94, 0.86, 0.9, 0.82, 0.86, 0.96, 0.92]
 const PRIVACY_POLICY_URL := "https://patguettler.github.io/privacy-policy.html"
 const DATA_DELETION_URL := "https://patguettler.github.io/privacy-policy.html#data-deletion"
 const BIOME_BACKDROP_PATHS := [
@@ -45,6 +48,9 @@ const BIOME_BACKDROP_PATHS := [
 	"res://assets/generated/candy_carnival_vista.png",
 	"res://assets/generated/volcano_valley_vista.png",
 	"res://assets/generated/cloud_kingdom_vista.png",
+	"res://assets/generated/savanna_sunrise_vista.png",
+	"res://assets/generated/crystal_caverns_vista.png",
+	"res://assets/generated/moonbase_marathon_vista.png",
 ]
 const RUNNER_ART_PATHS := [
 	"res://assets/generated/gameplay/runner_classic.png",
@@ -76,6 +82,20 @@ const RUNNER_GAMEPLAY_ART_PATHS := [
 ]
 const RIVAL_ART_PATH := "res://assets/generated/gameplay/rival_runner_back.png"
 const OBSTACLE_ATLAS_PATH := "res://assets/generated/gameplay/obstacle_atlas.png"
+const OBSTACLE_ATLAS_PATHS := [
+	OBSTACLE_ATLAS_PATH,
+	"res://assets/generated/gameplay/obstacles/beach_track_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/night_games_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/desert_circuit_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/snow_games_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/jungle_track_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/candy_carnival_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/volcano_valley_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/cloud_kingdom_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/savanna_sunrise_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/crystal_caverns_obstacles.png",
+	"res://assets/generated/gameplay/obstacles/moonbase_marathon_obstacles.png",
+]
 const REWARD_POWER_ATLAS_PATH := "res://assets/generated/gameplay/reward_power_atlas.png"
 const BIOME_PROP_ATLAS_PATH := "res://assets/generated/gameplay/biome_prop_atlas.png"
 const EFFECTS_MEDALS_ATLAS_PATH := "res://assets/generated/gameplay/effects_medals_atlas.png"
@@ -93,6 +113,9 @@ const SURFACE_PATHS := [
 	"res://assets/generated/gameplay/surfaces/hd/candy_rubber_hd.png",
 	"res://assets/generated/gameplay/surfaces/hd/volcano_rubber_hd.png",
 	"res://assets/generated/gameplay/surfaces/hd/cloud_rubber_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/savanna_earth_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/crystal_floor_hd.png",
+	"res://assets/generated/gameplay/surfaces/hd/moon_dust_hd.png",
 ]
 const OBSTACLE_CELLS := {"wall": 0, "bar": 1, "cone": 2, "drone": 3, "slip": 4}
 
@@ -126,7 +149,7 @@ var speed := 16.0
 var spawn_meter := 18.0
 var current_biome := 0
 var last_biome := -1
-var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+var biome_sequence: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 var biome_tour := 0
 var checkpoint_stage := 0
 var biome_transition_active := false
@@ -279,7 +302,7 @@ func _process(delta: float) -> void:
 	if absf(ad_reserve - applied_ad_reserve) > 0.5:
 		refresh_ad_layout()
 	elapsed += delta
-	player.step(delta)
+	player.step(delta, _player_gravity_scale())
 	if toast_time > 0.0:
 		toast_time -= delta
 		toast_label.modulate.a = minf(1.0, toast_time * 2.0)
@@ -324,7 +347,7 @@ func _input(event: InputEvent) -> void:
 		KEY_RIGHT:
 			_move_player(1)
 		KEY_UP:
-			player.jump()
+			_try_jump()
 		KEY_DOWN:
 			player.duck()
 		_:
@@ -348,7 +371,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("move_right"):
 		_move_player(1)
 	elif event.is_action_pressed("jump"):
-		player.jump()
+		_try_jump()
 	elif event.is_action_pressed("duck"):
 		player.duck()
 	elif event.is_action_pressed("power_up"):
@@ -403,7 +426,7 @@ func _handle_swipe(delta: Vector2) -> bool:
 	if absf(delta.x) > absf(delta.y):
 		_move_player(-1 if delta.x < 0.0 else 1)
 	elif delta.y < 0.0:
-		player.jump()
+		_try_jump()
 	else:
 		player.duck()
 	return true
@@ -411,6 +434,21 @@ func _handle_swipe(delta: Vector2) -> bool:
 func _swipe_min_distance() -> float:
 	var viewport_size := get_viewport().get_visible_rect().size
 	return clampf(minf(viewport_size.x, viewport_size.y) * 0.055, 30.0, 64.0)
+
+func _power_is_active(ability_kind: int) -> bool:
+	return power_timer > 0.0 and GameManager.selected_ability_kind() == ability_kind
+
+func _try_jump() -> bool:
+	var ability_kind := GameManager.selected_ability_kind()
+	var can_double_jump := power_timer > 0.0 and ability_kind in [GameManager.ABILITY_DOUBLE_JUMP, GameManager.ABILITY_MIRACLE]
+	var jumped: bool = player.jump(2 if can_double_jump else 1)
+	if jumped and player.jumps_used == 2:
+		_spawn_puff(player.global_position + Vector3(0, 1.2, 0), Color("#fff0a8"), 10)
+		_show_toast("DOUBLE JUMP!")
+	return jumped
+
+func _player_gravity_scale() -> float:
+	return 0.48 if _power_is_active(GameManager.ABILITY_GLIDE) else 1.0
 
 func _reset_touch_gesture() -> void:
 	touch_start = Vector2.ZERO
@@ -594,11 +632,12 @@ func _power_aura_material(color: Color, alpha: float) -> StandardMaterial3D:
 	return material
 
 func _start_power_effect() -> void:
-	var effect_colors := [Color("#4de9ff"), Color("#ff69b4"), Color("#918cff"), Color("#ffd85a")]
+	var ability := GameManager.selected_ability()
 	var ability_kind := GameManager.selected_ability_kind()
-	var effect_color: Color = effect_colors[clampi(ability_kind, 0, effect_colors.size() - 1)]
-	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, ability_kind + 1)
-	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if ability_kind == GameManager.ABILITY_SHIELD else 0.065)
+	var effect_color := Color(str(ability.get("aura_color", "#4de9ff")))
+	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.get("icon_cell", 1)))
+	var protective := ability_kind in [GameManager.ABILITY_SHIELD, GameManager.ABILITY_RESCUE, GameManager.ABILITY_MIRACLE]
+	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if protective else 0.065)
 	for ring in power_effect_rings:
 		ring.material_override = _power_aura_material(effect_color, 0.82)
 	for icon in power_effect_icons:
@@ -644,7 +683,7 @@ func _update_power(delta: float) -> void:
 		slip_timer -= delta
 		if slip_timer <= 0.0:
 			controls_reversed = false
-	if GameManager.selected_ability_kind() == GameManager.ABILITY_MAGNET and power_timer > 0.0:
+	if power_timer > 0.0 and GameManager.selected_ability_kind() in [GameManager.ABILITY_MAGNET, GameManager.ABILITY_MIRACLE]:
 		for item in feathers:
 			var node: Node3D = item.node
 			if is_instance_valid(node) and node.position.z > -18.0:
@@ -671,7 +710,16 @@ func _activate_power() -> void:
 			_show_toast("%s — obstacles slowed!" % str(ability.name).to_upper())
 		GameManager.ABILITY_RESCUE:
 			shield_active = true
-			_show_toast("%s — crash protection!" % str(ability.name).to_upper())
+			_show_toast("%s — phase through obstacles!" % str(ability.name).to_upper())
+		GameManager.ABILITY_DOUBLE_JUMP:
+			_show_toast("%s — jump again in midair!" % str(ability.name).to_upper())
+		GameManager.ABILITY_FEATHER_FRENZY:
+			_show_toast("%s — every feather is worth more!" % str(ability.name).to_upper())
+		GameManager.ABILITY_GLIDE:
+			_show_toast("%s — long, floaty jumps!" % str(ability.name).to_upper())
+		GameManager.ABILITY_MIRACLE:
+			shield_active = true
+			_show_toast("%s — all gifts at once!" % str(ability.name).to_upper())
 
 func _spawn_pattern() -> void:
 	if distance >= ALL_LANES_SKILL_DISTANCE and randf() < _all_lanes_skill_chance():
@@ -742,7 +790,8 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 		var cell: int = [0, 5].pick_random() if kind == "wall" else OBSTACLE_CELLS.get(kind, 5)
 		var sprite_height: float = {"wall": 1.42, "bar": 2.82, "cone": 1.08, "drone": 2.55, "slip": 0.62}.get(kind, 1.0)
 		var pixel_size: float = {"wall": 0.0074, "bar": 0.0088, "cone": 0.0062, "drone": 0.0074, "slip": 0.0063}.get(kind, 0.0065)
-		var art := _sprite_3d(node, _atlas_texture(OBSTACLE_ATLAS_PATH, 3, 2, cell), Vector3(0.0, sprite_height, 0.0), pixel_size, "Generated%sArt" % kind.capitalize())
+		var atlas_path: String = OBSTACLE_ATLAS_PATHS[clampi(current_biome, 0, OBSTACLE_ATLAS_PATHS.size() - 1)]
+		var art := _sprite_3d(node, _atlas_texture(atlas_path, 3, 2, cell), Vector3(0.0, sprite_height, 0.0), pixel_size, "Generated%sArt" % kind.capitalize())
 		if kind == "bar":
 			# Keep the feet planted while lifting the crossbar well above the other
 			# hazards. A little extra width reinforces that this spans the lane.
@@ -935,7 +984,7 @@ func _move_objects(delta: float, move_speed: float) -> void:
 			node.queue_free()
 
 func _can_collect_feather(item: Dictionary) -> bool:
-	if GameManager.selected_ability_kind() == GameManager.ABILITY_MAGNET and power_timer > 0.0:
+	if power_timer > 0.0 and GameManager.selected_ability_kind() in [GameManager.ABILITY_MAGNET, GameManager.ABILITY_MIRACLE]:
 		return true
 	match str(item.get("height_mode", "normal")):
 		"jump":
@@ -969,7 +1018,10 @@ func _clean_dodge(near: bool) -> void:
 
 func _collect_feather(item: Dictionary) -> void:
 	var node: Node3D = item.node
-	run_feathers += combo
+	var pickup_multiplier := 1
+	if power_timer > 0.0 and GameManager.selected_ability_kind() in [GameManager.ABILITY_FEATHER_FRENZY, GameManager.ABILITY_MIRACLE]:
+		pickup_multiplier = int(GameManager.selected_ability().get("pickup_multiplier", 2))
+	run_feathers += combo * pickup_multiplier
 	power_charge = minf(100.0, power_charge + 5.0 * float(GameManager.selected_ability().charge_rate))
 	_play_sound(pickup_sound, -8.0)
 	feathers.erase(item)
@@ -985,7 +1037,7 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 	if state != GameState.RUNNING:
 		return
 	if shield_active:
-		var continuous_rescue := GameManager.selected_ability_kind() == GameManager.ABILITY_RESCUE and power_timer > 0.0
+		var continuous_rescue := power_timer > 0.0 and GameManager.selected_ability_kind() in [GameManager.ABILITY_RESCUE, GameManager.ABILITY_MIRACLE]
 		if not continuous_rescue:
 			shield_active = false
 			power_timer = 0.0
@@ -1185,11 +1237,11 @@ func _apply_biome_environment(index: int) -> void:
 	env.fog_sky_affect = 0.18
 	env.ambient_light_color = biome.sky.lightened(0.35)
 	env.tonemap_exposure = BIOME_EXPOSURES[index]
-	env.ambient_light_energy = 0.56 if index != 2 else 0.34
-	sun.light_color = Color("#fff1cf") if index != 2 else Color("#8fb8ff")
-	sun.light_energy = 1.02 if index != 2 else 0.68
+	env.ambient_light_energy = _ambient_energy(index)
+	sun.light_color = _sun_color(index)
+	sun.light_energy = _sun_energy(index)
 	fill_light.light_color = biome.accent
-	fill_light.light_energy = 2.2 if index == 2 else 0.7
+	fill_light.light_energy = _fill_energy(index)
 
 func _blend_biome_environment(from_index: int, to_index: int, amount: float) -> void:
 	var from_biome: Dictionary = BIOMES[from_index]
@@ -1212,19 +1264,19 @@ func _blend_biome_environment(from_index: int, to_index: int, amount: float) -> 
 	fill_light.light_energy = lerpf(_fill_energy(from_index), _fill_energy(to_index), amount)
 
 func _ambient_energy(index: int) -> float:
-	return 0.34 if index == 2 else 0.56
+	return {2: 0.34, 10: 0.40, 11: 0.36}.get(index, 0.56)
 
 func _sun_color(index: int) -> Color:
-	return Color("#8fb8ff") if index == 2 else Color("#fff1cf")
+	return Color("#8fb8ff") if index in [2, 10, 11] else Color("#fff1cf")
 
 func _sun_energy(index: int) -> float:
-	return 0.68 if index == 2 else 1.02
+	return {2: 0.68, 10: 0.78, 11: 0.72}.get(index, 1.02)
 
 func _fill_energy(index: int) -> float:
-	return 2.2 if index == 2 else 0.7
+	return {2: 2.2, 10: 2.0, 11: 1.3}.get(index, 0.7)
 
 func _road_tint(index: int) -> Color:
-	return Color("#b8d8e8") if index == 4 else Color.WHITE
+	return {4: Color("#b8d8e8"), 10: Color("#d9ccff"), 11: Color("#d7e5f0")}.get(index, Color.WHITE)
 
 func _ground_tint(index: int) -> Color:
 	return Color("#a9cbd9") if index == 4 else BIOMES[index].ground.lightened(0.14)
@@ -1305,12 +1357,13 @@ func _rebuild_props(index: int) -> void:
 		child.free()
 	# The stadium vista already includes its own flags, flowers, lamps, and crowd
 	# dressing. Extra foreground plates made those details appear twice.
-	if index == 0:
+	if index == 0 or index >= 9:
 		return
-	var prop_cells := [0, 1, 2, 3, 4, 5, 1, 3, 0]
+	var prop_cells := [0, 1, 2, 3, 4, 5, 1, 3, 0, 5, 2, 4]
 	var prop_tints := [
 		Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE,
 		Color("#ffd8ef"), Color("#ffad72"), Color("#dff5ff"),
+		Color("#ffe0a3"), Color("#bda9ff"), Color("#bfeaff"),
 	]
 	var prop_number := 0
 	for z in range(-82, 20, 26):
@@ -2591,7 +2644,7 @@ func _refresh_menu() -> void:
 	loadout_ability_label.text = "%s\n%s  •  %.1fs  •  starts %d%% charged" % [
 		str(ability.name).to_upper(), str(ability.description), float(ability.duration), int(ability.start_charge),
 	]
-	loadout_ability_icon.texture = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.kind) + 1)
+	loadout_ability_icon.texture = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.get("icon_cell", 1)))
 	daily_label.text = "✓  DAILY CHALLENGE COMPLETE" if GameManager.daily_complete else "DAILY CHALLENGE  •  COLLECT 15 FEATHERS  •  REWARD ◆25"
 	_update_music_button()
 
@@ -2668,7 +2721,7 @@ func _rebuild_shop_cards() -> void:
 	var medal_colors := [
 		Color("#20c7bc"), Color("#54c7f2"), Color("#8f75f5"), Color("#ff9c63"),
 		Color("#82c86d"), Color("#ff6f9f"), Color("#f45b91"), Color("#ff7b3d"),
-		Color("#7fc8ef"),
+		Color("#7fc8ef"), Color("#d9a245"), Color("#8f6bdf"), Color("#638eaa"),
 	]
 	for biome_index in range(BIOMES.size()):
 		var medal_name := GameManager.medal_for_biome(biome_index)
@@ -2853,14 +2906,23 @@ func _update_hud() -> void:
 	power_bar.value = power_charge
 	var ability := GameManager.selected_ability()
 	var ability_name := str(ability.name)
-	var ability_kind := int(ability.kind)
-	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, ability_kind + 1)
+	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.get("icon_cell", 1)))
 	if power_charge >= 100.0:
 		power_button.text = "%s READY!\n%s" % [ability_name.to_upper(), "TAP TO USE" if mobile_mode else "PRESS E"]
 	else:
 		power_button.text = "%s  %d%%\nDODGE TO CHARGE" % [ability_name.to_upper(), int(power_charge)]
 	if power_timer > 0.0:
-		power_button.text = "%s ACTIVE\n%.1f SECONDS" % [ability_name.to_upper(), power_timer]
+		var active_hint := "POWER ACTIVE"
+		match int(ability.kind):
+			GameManager.ABILITY_DOUBLE_JUMP:
+				active_hint = "JUMP AGAIN IN AIR"
+			GameManager.ABILITY_GLIDE:
+				active_hint = "SWIPE UP TO FLOAT"
+			GameManager.ABILITY_FEATHER_FRENZY:
+				active_hint = "%d× FEATHERS" % int(ability.get("pickup_multiplier", 2))
+			GameManager.ABILITY_MIRACLE:
+				active_hint = "ALL GIFTS ACTIVE"
+		power_button.text = "%s  %.1fs\n%s" % [ability_name.to_upper(), power_timer, active_hint]
 	power_button.modulate = Color.WHITE if power_charge >= 100.0 or power_timer > 0.0 else Color(0.84, 0.92, 0.95, 1.0)
 
 func _medal_cell(medal_name: String) -> int:

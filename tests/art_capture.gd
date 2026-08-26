@@ -35,7 +35,7 @@ func _run() -> void:
 		game._start_run()
 		game._clear_run_objects()
 		var original_skin: int = game_manager.selected_skin
-		var power_filenames := ["feather_guard", "moon_magnet", "golden_reflex", "bubble_bounce"]
+		var power_filenames := ["feather_guard", "moon_magnet", "golden_flock", "bubble_double"]
 		for power_index in range(4):
 			game_manager.selected_skin = power_index
 			game.player.apply_skin(power_index)
@@ -89,14 +89,15 @@ func _run() -> void:
 	game.state = game.GameState.PAUSED
 	game.pause_layer.visible = false
 	game.hud.visible = true
-	game._clear_run_objects()
-	game._spawn_obstacle("wall", 0, -8.5)
-	game._spawn_obstacle("drone", 2, -13.0)
-	for i in range(5):
-		game._spawn_feather(1, -6.0 - i * 3.0)
 	for biome_index in range(game.BIOMES.size()):
 		game.current_biome = biome_index
 		game._apply_biome(biome_index, true)
+		game._clear_run_objects()
+		game._spawn_obstacle("wall", 0, -8.5)
+		game._spawn_obstacle("bar", 1, -15.5)
+		game._spawn_obstacle("drone", 2, -22.0)
+		for i in range(5):
+			game._spawn_feather(1, -6.0 - i * 3.0)
 		game.toast_label.visible = false
 		for i in range(8):
 			await process_frame

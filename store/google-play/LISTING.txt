@@ -5,16 +5,16 @@ App name
 Ostrich Dash
 
 Short description (80 characters max)
-Swipe, jump, and duck through nine changing worlds in a cute ostrich runner.
+Swipe, jump, and duck through twelve cute worlds in a colorful ostrich runner.
 
 Full description
-Ostrich Dash is a colorful third-person, three-lane endless runner. Guide an ostrich down an ever-changing track through Classic Stadium, Beach Track, Night Games, Desert Circuit, Snow Games, Jungle Track, Candy Carnival, Volcano Valley, and Cloud Kingdom.
+Ostrich Dash is a colorful third-person, three-lane endless runner. Guide an ostrich down an ever-changing track through twelve worlds: Classic Stadium, Beach Track, Night Games, Desert Circuit, Snow Games, Jungle Track, Candy Carnival, Volcano Valley, Cloud Kingdom, Savanna Sunrise, Crystal Caverns, and Moonbase Marathon. Each world has its own matching hurdle, gate, marker, flying hazard, slick patch, and wall art.
 
 Swipe left or right to switch lanes, swipe up to jump, and swipe down to duck. Dodge padded hurdles, foam walls, traffic cones, duck-under gates, referee drones, slippery patches, and rival runners.
 
 Collect feathers during each run to unlock twelve colorful ostrich runners. Build clean-dodge combos, earn biome medals, complete a daily feather challenge, climb the global Longest Dash leaderboard, and improve your personal best.
 
-Every ostrich has its own built-in runner gift—there is no separate power to choose. Unlocking more advanced runners gives you longer-lasting gifts, more starting charge, and faster recharging. Gifts can block a crash, pull feathers toward you, slow obstacles, or rescue you from collisions.
+Every ostrich has its own built-in runner gift—there is no separate power to choose. Unlocking more advanced runners gives you longer-lasting gifts, more starting charge, and faster recharging. Gifts include crash shields, feather magnets, slow motion, obstacle phasing, double jump, aerial glide, double or triple feather rewards, and a top-tier combined miracle.
 
 On a keyboard, use the arrow keys or A/D to switch lanes, W or Space to jump, S to duck, and E or Q to activate your runner's charged gift.
 

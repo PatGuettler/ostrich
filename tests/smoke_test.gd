@@ -62,8 +62,23 @@ func _run() -> void:
 		push_error("Android native back is still configured to quit the app")
 		quit(1)
 		return
-	if game.BIOMES.size() < 9 or game_manager.biome_bests.size() != game.BIOMES.size():
-		push_error("The expanded nine-biome tour is incomplete")
+	if game.BIOMES.size() < 12 or game_manager.biome_bests.size() != game.BIOMES.size():
+		push_error("The expanded twelve-biome tour is incomplete")
+		quit(1)
+		return
+	if (
+		game.BIOME_BACKDROP_PATHS.size() != game.BIOMES.size()
+		or game.SURFACE_PATHS.size() != game.BIOMES.size()
+		or game.OBSTACLE_ATLAS_PATHS.size() != game.BIOMES.size()
+	):
+		push_error("Every biome needs its own vista, track surface, and obstacle style")
+		quit(1)
+		return
+	var unique_obstacle_atlases := {}
+	for obstacle_atlas_path in game.OBSTACLE_ATLAS_PATHS:
+		unique_obstacle_atlases[obstacle_atlas_path] = true
+	if unique_obstacle_atlases.size() != game.BIOMES.size():
+		push_error("Biome obstacle art is being reused instead of matching each environment")
 		quit(1)
 		return
 	if ad_bar_service.banner_unit_id_for("ostrich_dash", "Android").is_empty():
@@ -129,6 +144,8 @@ func _run() -> void:
 		game.player.RUN_LEG_SHEET_PATH,
 	])
 	required_art.append_array(game.SURFACE_PATHS)
+	required_art.append_array(game.BIOME_BACKDROP_PATHS)
+	required_art.append_array(game.OBSTACLE_ATLAS_PATHS)
 	for art_path in required_art:
 		if not FileAccess.file_exists(art_path):
 			push_error("Missing generated gameplay art: %s" % art_path)
@@ -138,6 +155,13 @@ func _run() -> void:
 		var surface_texture := load(surface_path) as Texture2D
 		if surface_texture == null or surface_texture.get_width() < 1200 or surface_texture.get_height() < 1200:
 			push_error("Gameplay surface is not using the high-detail production asset: %s" % surface_path)
+			quit(1)
+			return
+	for obstacle_atlas_path in game.OBSTACLE_ATLAS_PATHS:
+		var obstacle_texture := load(obstacle_atlas_path) as Texture2D
+		var obstacle_image := obstacle_texture.get_image() if obstacle_texture != null else null
+		if obstacle_texture == null or obstacle_texture.get_width() < 1500 or obstacle_image == null or obstacle_image.detect_alpha() == Image.ALPHA_NONE:
+			push_error("Biome obstacle atlas is missing production detail or transparency: %s" % obstacle_atlas_path)
 			quit(1)
 			return
 	var logo_texture := load(game.MENU_LOGO_PATH) as Texture2D
@@ -199,6 +223,7 @@ func _run() -> void:
 	var original_skin: int = game_manager.selected_skin
 	var seen_power_icons := {}
 	var seen_power_colors := {}
+	var seen_ability_kinds := {}
 	if game_manager.RUNNER_ABILITIES.size() != game_manager.SKINS.size():
 		push_error("Every unlockable runner must have exactly one built-in gift")
 		quit(1)
@@ -214,6 +239,16 @@ func _run() -> void:
 			push_error("Runner gifts must become progressively easier to charge and longer-lasting")
 			quit(1)
 			return
+	for ability in game_manager.RUNNER_ABILITIES:
+		seen_ability_kinds[int(ability.kind)] = true
+		if int(ability.get("icon_cell", -1)) < 0 or int(ability.get("icon_cell", -1)) >= 6 or str(ability.get("description", "")).is_empty():
+			push_error("Every runner gift needs valid buddy art and a readable explanation")
+			quit(1)
+			return
+	if seen_ability_kinds.size() < 8 or not seen_ability_kinds.has(game_manager.ABILITY_DOUBLE_JUMP):
+		push_error("The runner collection does not offer enough distinct gifts, including double jump")
+		quit(1)
+		return
 	game.state = game.GameState.RUNNING
 	game.player.visible = true
 	for power_index in range(4):
@@ -245,6 +280,47 @@ func _run() -> void:
 			return
 	if seen_power_icons.size() != 4 or seen_power_colors.size() != 4:
 		push_error("Power effects do not have four distinct generated icons and aura colors")
+		quit(1)
+		return
+
+	# Bubblegum and Celestial must change the real jump rules, not merely display
+	# double-jump text in the shop.
+	game_manager.selected_skin = 3
+	game.player.reset_player()
+	game.power_charge = 100.0
+	game.power_timer = 0.0
+	game._activate_power()
+	var first_jump: bool = game._try_jump()
+	game.player.step(0.08)
+	var second_jump: bool = game._try_jump()
+	var third_jump: bool = game._try_jump()
+	if not first_jump or not second_jump or third_jump or game.player.jumps_used != 2 or game.player.jump_velocity < 10.0:
+		push_error("Bubble Double did not provide exactly one responsive midair jump")
+		quit(1)
+		return
+
+	# Golden Flock is a mechanical reward multiplier.
+	game_manager.selected_skin = 2
+	game.player.apply_skin(2)
+	game.power_timer = 2.0
+	game.run_feathers = 0
+	game.combo = 2
+	game._spawn_feather(1, -8.0)
+	var frenzy_feather: Dictionary = game.feathers[-1]
+	game._collect_feather(frenzy_feather)
+	if game.run_feathers != 4:
+		push_error("Golden Flock did not double collected feather rewards")
+		quit(1)
+		return
+
+	# Aurora Glide must reduce airborne gravity for a visibly longer jump.
+	game_manager.selected_skin = 4
+	game.player.reset_player()
+	game.power_timer = 2.0
+	game.player.jump()
+	game.player.step(0.1, game._player_gravity_scale())
+	if game.player.jump_velocity < 9.6:
+		push_error("Aurora Glide did not create a slower, floatier fall")
 		quit(1)
 		return
 	game_manager.selected_skin = game_manager.RUNNER_ABILITIES.size() - 1
@@ -658,6 +734,19 @@ func _run() -> void:
 				push_error("Rival ostrich leg layers did not alternate through a running stride")
 				quit(1)
 				return
+	game._clear_run_objects()
+	for biome_index in range(game.BIOMES.size()):
+		game.current_biome = biome_index
+		game._spawn_obstacle("wall", 1, -20.0)
+		var biome_wall: Node3D = game.obstacles[-1].node
+		var biome_wall_art := biome_wall.get_node("GeneratedWallArt") as Sprite3D
+		var biome_atlas := biome_wall_art.texture as AtlasTexture
+		if biome_atlas == null or biome_atlas.atlas.resource_path != game.OBSTACLE_ATLAS_PATHS[biome_index]:
+			push_error("%s spawned an obstacle from the wrong biome art set" % game.BIOMES[biome_index].name)
+			quit(1)
+			return
+		game._clear_run_objects()
+	game.current_biome = 0
 	game._spawn_feather(1, -18.0)
 	if not _has_sprite_descendant(game.feathers[-1].node):
 		push_error("Generated feather pickup art is missing")

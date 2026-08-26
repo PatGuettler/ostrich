@@ -1,6 +1,6 @@
 # Ostrich Dash
 
-A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, twelve runner colorways, rival character, obstacles, pickups, runner gifts, effects, medals, track surfaces, prop clusters, and nine biome environments share one original premium animated-film 3D art direction. A third-person follow camera looks over the rear-facing ostrich as it runs away down a lightweight 3D track, with polished 2.5D generated plates and synthesized sound effects.
+A complete Godot 4 endless runner based on `ostrich-dash-full-plan.md`. Its key art, twelve runner colorways, rival character, biome-matched obstacles, pickups, runner gifts, effects, medals, track surfaces, prop clusters, and twelve biome environments share one original premium animated-film 3D art direction. A third-person follow camera looks over the rear-facing ostrich as it runs away down a lightweight 3D track, with polished 2.5D generated plates and synthesized sound effects.
 
 ## Play
 
@@ -30,16 +30,17 @@ Controls:
 - Mixed feather routes: most trails use clear lanes, while some cross hazards with high jump-feathers or low duck-feathers that reward committing to the correct move
 - Forward trip for foot-level impacts, neck-pivot flip over duck-under gates, camera shake, and generated feather/dust bursts
 - Distinct dramatic bird reactions: a rising-and-falling startled squawk for a neck flip and a stumbling yelp with impact thud for a foot-level trip
-- Nine unique generated biomes: Classic Stadium, Beach, Night, Desert, Snow, Jungle, Candy Carnival, Volcano Valley, and Cloud Kingdom
-- Each 225-meter biome is a visible Tour stage with next-world progress and a +5 feather checkpoint reward; clearing all nine stages awards a +25 Tour bonus before a reshuffled tour begins
+- Twelve unique generated biomes: Classic Stadium, Beach, Night, Desert, Snow, Jungle, Candy Carnival, Volcano Valley, Cloud Kingdom, Savanna Sunrise, Crystal Caverns, and Moonbase Marathon
+- Each biome has its own obstacle art set, so hurdles, duck-under gates, markers, flying hazards, slick patches, and walls match the current world
+- Each 225-meter biome is a visible Tour stage with next-world progress and a +5 feather checkpoint reward; clearing all twelve stages awards a +25 Tour bonus before a reshuffled tour begins
 - Large labeled Distance, Feathers, and Dodge Streak cards keep the important run stats readable in both orientations
 - Every ostrich owns one built-in runner gift—there is no separate ability setting. Its gift charges from clean dodges and feathers, then activates from the floating bubble beside the runner
-- Later unlocks start with more charge, recharge faster, last longer, and strengthen their shield, feather-pull, obstacle-slow, or crash-rescue effect so wardrobe progress helps extend runs
-- Every active runner gift visibly follows the ostrich for its full timer with a color-coded aura and orbiting generated shield, magnet, clock, or rescue-star buddies
+- Later unlocks start with more charge, recharge faster, and last longer. The roster includes crash shields, feather magnets, slow motion, obstacle phasing, double jump, aerial glide, double/triple feather rewards, and Royal Peacock's combined miracle
+- Every active runner gift visibly follows the ostrich for its full timer with a color-coded aura and an ability-matched orbiting buddy
 - Original looping background music with a saved Music On/Off control on the home screen
 - Full celebration result sheet with selected-runner art, biome medal progress, four readable stat bubbles, daily/streak highlights, and large retry/home/global-score actions
 - Native Google Play Games `Longest Dash` global scoreboard entry points on Home and Results
-- Persistent feather wallet, twelve unlockable colorways, and nine biome medals
+- Persistent feather wallet, twelve unlockable colorways, and twelve biome medals
 - Prestige wardrobe progression: paid runners climb from 25,000 to 5,000,000 feathers, with 15,050,000 feathers required for the complete collection
 - Daily 15-feather challenge and persistent save data
 - Pause, results, retry, shop, and loadout screens
@@ -61,7 +62,7 @@ godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_captu
 
 Captures are written outside the project package to `user://art_audit/`, including both halves of the scrolling portrait shop. The complete object list and generation provenance are in [`docs/ART_INVENTORY.md`](docs/ART_INVENTORY.md) and [`assets/generated/gameplay/GENERATION_NOTES.md`](assets/generated/gameplay/GENERATION_NOTES.md).
 
-To capture the four runner-gift effect families directly from portrait gameplay:
+To capture representative runner-gift effects directly from portrait gameplay:
 
 ```bash
 godot --fixed-fps 60 --path /home/pat/dev/ostrich --script res://tests/art_capture.gd -- --powers-only

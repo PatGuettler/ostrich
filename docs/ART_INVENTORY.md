@@ -1,8 +1,8 @@
 # Ostrich Dash gameplay art inventory
 
-This is the production checklist for bringing every visible gameplay element up to the cute, polished 3D-rendered quality of `assets/generated/ostrich_dash_key_art.png` and the nine biome vistas.
+This is the production checklist for bringing every visible gameplay element up to the cute, polished 3D-rendered quality of `assets/generated/ostrich_dash_key_art.png` and the twelve biome vistas.
 
-**Production status: complete.** Every replacement listed below is generated, integrated, and covered by the gameplay smoke test. Deterministic visual captures for all nine biomes, obstacle families, effects, trip pose, and shop are produced by `tests/art_capture.gd`.
+**Production status: complete.** Every replacement listed below is generated, integrated, and covered by the gameplay smoke test. Deterministic visual captures for all twelve biomes, matching obstacle families, effects, trip pose, and shop are produced by `tests/art_capture.gd`.
 
 ## Art direction anchor
 
@@ -30,6 +30,9 @@ This is the production checklist for bringing every visible gameplay element up 
 | `candy_carnival_vista.png` | Candy Carnival backdrop | New original generated vista |
 | `volcano_valley_vista.png` | Volcano Valley backdrop | New original generated vista |
 | `cloud_kingdom_vista.png` | Cloud Kingdom backdrop | New original generated vista |
+| `savanna_sunrise_vista.png` | Savanna Sunrise backdrop | New original generated vista |
+| `crystal_caverns_vista.png` | Crystal Caverns backdrop | New original generated vista |
+| `moonbase_marathon_vista.png` | Moonbase Marathon backdrop | New original generated vista |
 
 ## Player and characters
 
@@ -63,6 +66,8 @@ This is the production checklist for bringing every visible gameplay element up 
 | Slippery patch | Flattened transparent sphere | Glossy splash-shaped puddle |
 | Feather collectible | Capsule and box | Glowing cream-and-gold feather |
 
+Every biome uses a separate transparent six-cell obstacle atlas with the same collision-safe cell map. Beach hazards use surf and sand forms; Night uses neon; Desert uses sandstone; Snow uses ski gear; Jungle uses logs and ruins; Candy uses confectionery; Volcano uses basalt and lava; Cloud uses clouds and rainbows; Savanna uses carved timber and watering holes; Crystal uses gems; and Moonbase uses friendly space hardware. Classic retains the athletics training set.
+
 Most feather trails remain on open lanes. Some obstacle patterns place high feathers across low hazards or low feathers beneath overhead hazards, so the entire trail is collected only by committing to the correct jump or duck. After 650 meters, occasional three-lane commitment rows block every lane with one consistent hazard family and use the same feather-height cue to telegraph the required action.
 
 ## Runner gifts, rewards, and effects
@@ -73,6 +78,10 @@ Most feather trails remain on open lanes. Some obstacle patterns place high feat
 | Feather-pull gift | Text only | Horseshoe magnets orbit the runner inside a pink attraction aura for the entire active timer |
 | Reflex gift | Text only | Friendly stopwatches orbit inside a lavender time-warp aura for the entire active timer |
 | Rescue gift | Text only | Winged gold stars orbit inside a sunny crash-rescue aura for the entire active timer |
+| Double-jump gift | Text only | A star buddy and bright aura signal that a second swipe or key press works in midair |
+| Glide gift | Text only | Feather buddies surround the runner while airborne gravity is reduced |
+| Feather-frenzy gift | Text only | Reward-pouch buddies signal double or triple feather pickup value |
+| Peacock Miracle | Text only | A prestige aura combines double jump, feather pull, triple rewards, and continuous obstacle safety |
 | Collision burst | Primitive capsules | Feather/dust/sparkle effect sprites |
 | Bronze/Silver/Gold medals | Text only | Cute winged medal badges |
 
@@ -89,13 +98,16 @@ Most feather trails remain on open lanes. Some obstacle patterns place high feat
 | Candy Carnival | None | Candy arches, balloons, sprinkle shrubs, and frosting clouds |
 | Volcano Valley | None | Friendly lava caldera, basalt, ember palms, and festival pennants |
 | Cloud Kingdom | None | Floating islands, cloud grandstands, rainbow arches, and golden flags |
+| Savanna Sunrise | None | Golden acacia raceway and distant sunrise festival dressing in the complete vista |
+| Crystal Caverns | None | Luminous crystal arena and mineral lakes in the complete vista |
+| Moonbase Marathon | None | Lunar grandstands, habitat domes, and Earthrise in the complete vista |
 
 ## Track and ground surfaces
 
 | Surface | Current render | Replacement |
 | --- | --- | --- |
-| Running track | Flat colored box | Nine 1254×1254 high-detail rubber/sand/ice/dirt materials, tiled at world scale, plus procedural lane markings |
-| Side ground | Flat colored box | Nine coordinated high-detail biome materials with mipmapped anisotropic filtering |
+| Running track | Flat colored box | Twelve high-detail rubber/sand/ice/dirt/mineral/lunar materials, tiled at world scale, plus procedural lane markings |
+| Side ground | Flat colored box | Twelve coordinated high-detail biome materials with mipmapped anisotropic filtering |
 | Player grounding | None | Soft animated oval shadow |
 
 ## UI surfaces
@@ -105,7 +117,7 @@ Most feather trails remain on open lanes. Some obstacle patterns place high feat
 | Race dashboard | Unlabeled four-value bar | Three large labeled stat cards plus Tour/Stage, current biome, next-world distance, reward, and checkpoint progress |
 | Runner gift bubble | Detached meter and tiny corner button | Animated floating gift bubble beside the runner with ability art, charge instructions, embedded meter, mobile “Tap to use” state, and a visible seconds-remaining readout while its matching world aura follows the ostrich |
 | Skin shop cards | Pastel candy cards | Twelve large character portraits, colored portrait bubbles, chunky unlock/wear buttons, and a responsive scrolling 2-column phone layout |
-| Biome medals | Medal bubble gallery | Nine individually tinted, rounded badge bubbles with a readable earned-medal summary |
+| Biome medals | Medal bubble gallery | Twelve individually tinted, rounded badge bubbles with a readable earned-medal summary |
 | Startup menu | Dimensional title menu | Oversized responsive glass card, extra-rounded candy controls, bundled readable type, clear CTA hierarchy, stat/loadout pills, and a quiet in-card Privacy & Data footer |
 | Music control | None | Readable in-card Music On/Off pill sharing the footer row; its preference persists between launches |
 | Panels/buttons | Flat dark StyleBox | Layered soft-glass panels, highlights, shadows, rounded color accents, bold embedded display font |
@@ -163,7 +175,7 @@ The integration uses a small number of high-resolution transparent plates and at
 26. `effects_medals_atlas.png` — 3×2 cells
 27. `surface_atlas.png` — 3×2 cells
 
-The six original surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses nine separately generated 1254×1254 production materials in `gameplay/surfaces/hd/`—including the new candy, volcano, and cloud materials—because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
+The six original surface cells are also losslessly split into `gameplay/surfaces/` as recoverable sources. Runtime uses twelve separately generated production materials in `gameplay/surfaces/hd/`, including savanna earth, crystal floor, and moon dust, because Godot's 3D material sampler requires ordinary textures rather than atlas regions.
 
 All generated files are stored under `assets/generated/gameplay/` and consumed by code. Existing procedural collision and movement logic remains authoritative even when its placeholder geometry is hidden.
 

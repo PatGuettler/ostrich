@@ -1,6 +1,6 @@
 # Gameplay art generation notes
 
-All assets in this directory were created for Ostrich Dash from 2026-08-23 through 2026-08-25 with Codex's built-in image-generation workflow. The existing `ostrich_dash_key_art.png`, `ostrich_dash_icon.png`, and biome vistas were used only as character/style/palette/lighting references. No third-party game art, logos, brands, or copyrighted characters were used.
+All assets in this directory were created for Ostrich Dash from 2026-08-23 through 2026-08-26 with Codex's built-in image-generation workflow. The existing `ostrich_dash_key_art.png`, `ostrich_dash_icon.png`, and biome vistas were used only as character/style/palette/lighting references. No third-party game art, logos, brands, or copyrighted characters were used.
 
 ## Shared direction
 
@@ -100,11 +100,19 @@ Godot's 3D material path does not sample `AtlasTexture` regions consistently, so
 
 `candy_carnival_vista.png`, `volcano_valley_vista.png`, and `cloud_kingdom_vista.png` were created in built-in image-generation mode as original wide 16:9 animated-film 3D worlds. The prompt family preserved only the established follow-camera composition: a centered vanishing point, broad empty three-lane track, crop-safe sides, and scenery kept outside the playable lanes. It requested a distinct candy festival, friendly volcanic valley, or floating cloud kingdom and prohibited runners, obstacles, text, logos, watermarks, and doubled imagery.
 
+`savanna_sunrise_vista.png`, `crystal_caverns_vista.png`, and `moonbase_marathon_vista.png` were also created in built-in mode using the key art for finish and the stadium vista for composition. Their prompt set requested a centered empty three-lane follow-camera road, crop-safe scenery, high-detail animated-film 3D rendering, and one distinct golden savanna, luminous crystal arena, or friendly lunar race base. It prohibited characters, obstacles, text, logos, blank side strips, and doubled imagery.
+
+## Biome-specific obstacle atlases
+
+The eleven atlases under `obstacles/` give every non-Classic biome its own art while retaining the exact production 3×2 cell map: jump hurdle, tall duck gate, foot-level marker, flying hazard, slick patch, and wall. The built-in image-generation prompt used `obstacle_atlas.png` as the strict layout/camera/silhouette reference and the key art as the material/style reference. It requested one complete centered object per cell, premium cute animated-film 3D detail, transparent alpha, and no grid, labels, logos, scenery, or runner.
+
+Theme sets are Beach surf gear, Night neon, Desert sandstone, Snow ski gear, Jungle logs and ruins, Candy confectionery, Volcano basalt and lava, Cloud clouds and rainbows, Savanna carved timber and watering holes, Crystal gems, and Moonbase space hardware. Edge-connected neutral checker pixels in opaque previews were removed with `scripts/ci/remove_checker_alpha.gd`; every final atlas passes `check_image_alpha.gd` and imports with mipmaps.
+
 ## High-detail runtime surfaces
 
-The original 512×512 split swatches remain as recoverable source assets. Gameplay now uses nine separately generated 1254×1254 materials under `surfaces/hd/`: `classic_rubber_hd.png`, `beach_sand_hd.png`, `night_track_hd.png`, `desert_clay_hd.png`, `snow_pack_hd.png`, `jungle_earth_hd.png`, `candy_rubber_hd.png`, `volcano_rubber_hd.png`, and `cloud_rubber_hd.png`.
+The original 512×512 split swatches remain as recoverable source assets. Gameplay now uses twelve separately generated materials under `surfaces/hd/`: `classic_rubber_hd.png`, `beach_sand_hd.png`, `night_track_hd.png`, `desert_clay_hd.png`, `snow_pack_hd.png`, `jungle_earth_hd.png`, `candy_rubber_hd.png`, `volcano_rubber_hd.png`, `cloud_rubber_hd.png`, `savanna_earth_hd.png`, `crystal_floor_hd.png`, and `moon_dust_hd.png`.
 
-Each was created in built-in image-generation edit mode using its matching original swatch as the strict palette and material reference. The shared prompt requested a top-down orthographic, evenly lit, seamless tile with crisp large-, medium-, and fine-scale material structure, no objects, markings, text, perspective, blurry regions, or obvious repeated motifs. Biome-specific prompts called for rubber crumb and micro-pitting; fine sand grains and mineral variation; midnight recycled rubber; compacted clay and grit; packed snow crystals and ice chips; or moist soil, organic fiber, moss fronds, leaves, and pebbles.
+Each was created in built-in image-generation edit mode using a matching swatch as the strict palette and material reference. The shared prompt requested a top-down, evenly lit, seamless tile with crisp large-, medium-, and fine-scale material structure and no objects, markings, text, perspective, blurry regions, or obvious repeated motifs. The final three prompts specifically requested detailed ochre savanna gravel and clay, violet mineral grains with aqua/amethyst flecks, and compacted silver-blue lunar dust with pebbles and micro-craters.
 
 At runtime the HD swatches repeat four times per 24-meter track tile. All generated image imports include mipmaps, and 3D sprites/materials plus image-bearing UI controls request anisotropic mipmapped filtering. This prevents one low-frequency image from being enlarged across an entire world tile and preserves detail under camera perspective.
 
@@ -119,5 +127,5 @@ Every transparent runtime asset is validated with `scripts/ci/check_image_alpha.
 - Aurora, Emerald, Sunset, Frost, Celestial, Rose Gold, Electric Lime, and Royal Peacock were produced in built-in precise-object-edit mode. Their prompts preserved the exact ostrich identity, anatomy, running pose, scale, framing, full body, and both shoes; changed only the named feather/accessory palette; requested a dark coordinated studio vignette and detailed feathers/fabric/rubber; and prohibited text, logos, watermarks, crops, and extra objects. Gameplay applies matching tints to the rear body and six-pose leg sheet so all twelve choices retain the finished run animation.
 - Classic Stadium uses only its single complete vista at runtime. The former crowd/roof/rail layering and duplicated foreground plates are intentionally disabled.
 - Hidden procedural player geometry remains only as an animation/collision rig.
-- `tests/art_capture.gd` deterministically captures all nine biomes, both opposite run-stride extremes, both obstacle groups, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
-- `tests/smoke_test.gd` asserts required art exists, the six-frame detailed leg sheet is active, all runner gifts scale progressively, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.
+- `tests/art_capture.gd` deterministically captures all twelve biomes with their matching obstacles, both opposite run-stride extremes, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
+- `tests/smoke_test.gd` asserts required art exists, the six-frame detailed leg sheet is active, all runner gifts have functional mechanics (including double jump, feather frenzy, and glide), every biome spawns its own obstacle atlas, primitive player meshes are hidden, and shop portraits/medals are populated.

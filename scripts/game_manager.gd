@@ -12,28 +12,34 @@ const ABILITY_SHIELD := 0
 const ABILITY_MAGNET := 1
 const ABILITY_SLOW_MO := 2
 const ABILITY_RESCUE := 3
+const ABILITY_DOUBLE_JUMP := 4
+const ABILITY_FEATHER_FRENZY := 5
+const ABILITY_GLIDE := 6
+const ABILITY_MIRACLE := 7
 # Gifts belong to runners, not a separate loadout. Later, more expensive
 # runners start closer to a charge, recharge faster, and stay active longer.
+# icon_cell points into reward_power_atlas.png; aura_color keeps gifts readable
+# even when two abilities share the same cute buddy art.
 const RUNNER_ABILITIES := [
-	{"name": "Feather Guard", "kind": ABILITY_SHIELD, "duration": 4.0, "start_charge": 0.0, "charge_rate": 1.00, "description": "Blocks one crash"},
-	{"name": "Moon Magnet", "kind": ABILITY_MAGNET, "duration": 4.5, "start_charge": 4.0, "charge_rate": 1.04, "description": "Pulls feathers to you"},
-	{"name": "Golden Reflex", "kind": ABILITY_SLOW_MO, "duration": 5.0, "start_charge": 7.0, "charge_rate": 1.08, "description": "Slows every obstacle"},
-	{"name": "Bubble Bounce", "kind": ABILITY_RESCUE, "duration": 5.4, "start_charge": 10.0, "charge_rate": 1.12, "description": "Bounces through crashes"},
-	{"name": "Aurora Guard", "kind": ABILITY_SHIELD, "duration": 5.8, "start_charge": 13.0, "charge_rate": 1.16, "description": "A longer crash shield"},
-	{"name": "Emerald Pull", "kind": ABILITY_MAGNET, "duration": 6.2, "start_charge": 16.0, "charge_rate": 1.20, "description": "A stronger feather pull"},
-	{"name": "Sunset Time", "kind": ABILITY_SLOW_MO, "duration": 6.6, "start_charge": 19.0, "charge_rate": 1.24, "description": "A longer obstacle slow"},
-	{"name": "Frost Rescue", "kind": ABILITY_RESCUE, "duration": 7.0, "start_charge": 22.0, "charge_rate": 1.28, "description": "Runs safely through hits"},
-	{"name": "Celestial Guard", "kind": ABILITY_SHIELD, "duration": 7.4, "start_charge": 25.0, "charge_rate": 1.32, "description": "A prestige crash shield"},
-	{"name": "Rose Gold Pull", "kind": ABILITY_MAGNET, "duration": 7.8, "start_charge": 28.0, "charge_rate": 1.36, "description": "A prestige feather pull"},
-	{"name": "Lime Lightning", "kind": ABILITY_SLOW_MO, "duration": 8.2, "start_charge": 31.0, "charge_rate": 1.40, "description": "The strongest time slow"},
-	{"name": "Peacock Miracle", "kind": ABILITY_RESCUE, "duration": 8.6, "start_charge": 35.0, "charge_rate": 1.45, "description": "Maximum crash protection"},
+	{"name": "Feather Guard", "kind": ABILITY_SHIELD, "duration": 4.0, "start_charge": 0.0, "charge_rate": 1.00, "icon_cell": 1, "aura_color": "#4de9ff", "description": "Blocks one crash"},
+	{"name": "Moon Magnet", "kind": ABILITY_MAGNET, "duration": 4.5, "start_charge": 4.0, "charge_rate": 1.04, "icon_cell": 2, "aura_color": "#ff69b4", "description": "Pulls nearby feathers to you"},
+	{"name": "Golden Flock", "kind": ABILITY_FEATHER_FRENZY, "duration": 5.0, "start_charge": 7.0, "charge_rate": 1.08, "icon_cell": 5, "aura_color": "#ffc84d", "pickup_multiplier": 2, "description": "Every feather collected counts twice"},
+	{"name": "Bubble Double", "kind": ABILITY_DOUBLE_JUMP, "duration": 5.4, "start_charge": 10.0, "charge_rate": 1.12, "icon_cell": 4, "aura_color": "#ff76cf", "description": "Jump again in the air for a double jump"},
+	{"name": "Aurora Glide", "kind": ABILITY_GLIDE, "duration": 5.8, "start_charge": 13.0, "charge_rate": 1.16, "icon_cell": 0, "aura_color": "#79f5d2", "description": "Float farther with slow, gentle falls"},
+	{"name": "Emerald Pull", "kind": ABILITY_MAGNET, "duration": 6.2, "start_charge": 16.0, "charge_rate": 1.20, "icon_cell": 2, "aura_color": "#45e08b", "description": "Pulls feathers from across the track"},
+	{"name": "Sunset Time", "kind": ABILITY_SLOW_MO, "duration": 6.6, "start_charge": 19.0, "charge_rate": 1.24, "icon_cell": 3, "aura_color": "#a28cff", "description": "Slows the whole obstacle course"},
+	{"name": "Frost Phantom", "kind": ABILITY_RESCUE, "duration": 7.0, "start_charge": 22.0, "charge_rate": 1.28, "icon_cell": 4, "aura_color": "#a8eeff", "description": "Glide safely through every obstacle"},
+	{"name": "Celestial Double", "kind": ABILITY_DOUBLE_JUMP, "duration": 7.4, "start_charge": 25.0, "charge_rate": 1.32, "icon_cell": 4, "aura_color": "#889cff", "description": "A long-lasting midair double jump"},
+	{"name": "Rose Gold Rush", "kind": ABILITY_FEATHER_FRENZY, "duration": 7.8, "start_charge": 28.0, "charge_rate": 1.36, "icon_cell": 5, "aura_color": "#ff8fab", "pickup_multiplier": 3, "description": "Every feather collected counts triple"},
+	{"name": "Lime Lightning", "kind": ABILITY_SLOW_MO, "duration": 8.2, "start_charge": 31.0, "charge_rate": 1.40, "icon_cell": 3, "aura_color": "#c7ff3d", "description": "Freezes hazards into super slow motion"},
+	{"name": "Peacock Miracle", "kind": ABILITY_MIRACLE, "duration": 8.6, "start_charge": 35.0, "charge_rate": 1.45, "icon_cell": 5, "aura_color": "#35e6d0", "pickup_multiplier": 3, "description": "Double jump, feather pull, triple rewards, and safety"},
 ]
 
 var total_feathers := 0
 var best_distance := 0.0
 var selected_skin := 0
 var owned_skins: Array[int] = [0]
-var biome_bests: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+var biome_bests: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 var daily_date := ""
 var daily_complete := false
 var music_enabled := true
