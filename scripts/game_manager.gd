@@ -5,16 +5,33 @@ const SKINS := [
 	"Classic", "Midnight", "Golden", "Bubblegum", "Aurora", "Emerald",
 	"Sunset", "Frost", "Celestial", "Rose Gold", "Electric Lime", "Royal Peacock",
 ]
-# The complete twelve-color wardrobe costs 700,000 feathers. The high-combo
-# feather economy lets skilled players earn quickly, so the prestige colors
-# extend the collection into a genuine long-term goal.
-const SKIN_COSTS := [0, 1000, 3500, 7500, 14000, 24000, 40000, 60000, 85000, 115000, 150000, 200000]
-const POWERS := ["Shield", "Magnet", "Slow-Mo", "Score Rush"]
+# Classic stays free so a new player can run. Every additional runner is a
+# major long-term unlock; the full wardrobe costs 15,050,000 feathers.
+const SKIN_COSTS := [0, 25000, 75000, 150000, 300000, 500000, 750000, 1000000, 1500000, 2250000, 3500000, 5000000]
+const ABILITY_SHIELD := 0
+const ABILITY_MAGNET := 1
+const ABILITY_SLOW_MO := 2
+const ABILITY_RESCUE := 3
+# Gifts belong to runners, not a separate loadout. Later, more expensive
+# runners start closer to a charge, recharge faster, and stay active longer.
+const RUNNER_ABILITIES := [
+	{"name": "Feather Guard", "kind": ABILITY_SHIELD, "duration": 4.0, "start_charge": 0.0, "charge_rate": 1.00, "description": "Blocks one crash"},
+	{"name": "Moon Magnet", "kind": ABILITY_MAGNET, "duration": 4.5, "start_charge": 4.0, "charge_rate": 1.04, "description": "Pulls feathers to you"},
+	{"name": "Golden Reflex", "kind": ABILITY_SLOW_MO, "duration": 5.0, "start_charge": 7.0, "charge_rate": 1.08, "description": "Slows every obstacle"},
+	{"name": "Bubble Bounce", "kind": ABILITY_RESCUE, "duration": 5.4, "start_charge": 10.0, "charge_rate": 1.12, "description": "Bounces through crashes"},
+	{"name": "Aurora Guard", "kind": ABILITY_SHIELD, "duration": 5.8, "start_charge": 13.0, "charge_rate": 1.16, "description": "A longer crash shield"},
+	{"name": "Emerald Pull", "kind": ABILITY_MAGNET, "duration": 6.2, "start_charge": 16.0, "charge_rate": 1.20, "description": "A stronger feather pull"},
+	{"name": "Sunset Time", "kind": ABILITY_SLOW_MO, "duration": 6.6, "start_charge": 19.0, "charge_rate": 1.24, "description": "A longer obstacle slow"},
+	{"name": "Frost Rescue", "kind": ABILITY_RESCUE, "duration": 7.0, "start_charge": 22.0, "charge_rate": 1.28, "description": "Runs safely through hits"},
+	{"name": "Celestial Guard", "kind": ABILITY_SHIELD, "duration": 7.4, "start_charge": 25.0, "charge_rate": 1.32, "description": "A prestige crash shield"},
+	{"name": "Rose Gold Pull", "kind": ABILITY_MAGNET, "duration": 7.8, "start_charge": 28.0, "charge_rate": 1.36, "description": "A prestige feather pull"},
+	{"name": "Lime Lightning", "kind": ABILITY_SLOW_MO, "duration": 8.2, "start_charge": 31.0, "charge_rate": 1.40, "description": "The strongest time slow"},
+	{"name": "Peacock Miracle", "kind": ABILITY_RESCUE, "duration": 8.6, "start_charge": 35.0, "charge_rate": 1.45, "description": "Maximum crash protection"},
+]
 
 var total_feathers := 0
 var best_distance := 0.0
 var selected_skin := 0
-var selected_power := 0
 var owned_skins: Array[int] = [0]
 var biome_bests: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 var daily_date := ""
@@ -32,7 +49,6 @@ func load_save() -> void:
 	total_feathers = int(cfg.get_value("progress", "feathers", 0))
 	best_distance = float(cfg.get_value("progress", "best_distance", 0.0))
 	selected_skin = clampi(int(cfg.get_value("loadout", "skin", 0)), 0, SKINS.size() - 1)
-	selected_power = clampi(int(cfg.get_value("loadout", "power", 0)), 0, POWERS.size() - 1)
 	var saved_owned: Array = cfg.get_value("progress", "owned_skins", [0])
 	owned_skins.clear()
 	for item in saved_owned:
@@ -59,7 +75,6 @@ func save() -> void:
 	cfg.set_value("progress", "owned_skins", owned_skins)
 	cfg.set_value("progress", "biome_bests", biome_bests)
 	cfg.set_value("loadout", "skin", selected_skin)
-	cfg.set_value("loadout", "power", selected_power)
 	cfg.set_value("daily", "date", daily_date)
 	cfg.set_value("daily", "complete", daily_complete)
 	cfg.set_value("settings", "music_enabled", music_enabled)
@@ -95,9 +110,11 @@ func buy_or_equip_skin(index: int) -> bool:
 	save()
 	return true
 
-func set_power(index: int) -> void:
-	selected_power = posmod(index, POWERS.size())
-	save()
+func selected_ability() -> Dictionary:
+	return RUNNER_ABILITIES[clampi(selected_skin, 0, RUNNER_ABILITIES.size() - 1)]
+
+func selected_ability_kind() -> int:
+	return int(selected_ability().kind)
 
 func set_music_enabled(enabled: bool) -> void:
 	music_enabled = enabled

@@ -26,6 +26,11 @@ const SPAWN_GAP_MAX := 38.0
 const SPAWN_GAP_RAMP_REDUCTION := 4.0
 const DOUBLE_OBSTACLE_DISTANCE := 240.0
 const DOUBLE_OBSTACLE_CHANCE := 0.26
+const SKILL_FEATHER_TRAIL_CHANCE := 0.40
+const ALL_LANES_SKILL_DISTANCE := 650.0
+const ALL_LANES_SKILL_CHANCE := 0.10
+const ALL_LANES_SKILL_MAX_CHANCE := 0.28
+const ALL_LANES_SKILL_RAMP_DISTANCE := 2200.0
 const BIOME_FOG_DENSITIES := [0.0018, 0.0022, 0.0032, 0.0022, 0.0028, 0.0034, 0.0018, 0.0024, 0.0016]
 const BIOME_EXPOSURES := [0.84, 0.82, 1.0, 0.84, 0.86, 0.94, 0.86, 0.9, 0.82]
 const PRIVACY_POLICY_URL := "https://patguettler.github.io/privacy-policy.html"
@@ -149,6 +154,11 @@ var touch_start := Vector2.ZERO
 var touch_tracking := false
 var touch_finger := -1
 var touch_action_committed := false
+var shop_touch_tracking := false
+var shop_touch_finger := -1
+var shop_touch_start_y := 0.0
+var shop_touch_last_y := 0.0
+var shop_touch_dragging := false
 var last_result: Dictionary = {}
 var last_crash := "spin"
 var mobile_mode := false
@@ -174,7 +184,9 @@ var music_toggle_button: Button
 var control_help_label: Label
 var menu_wallet: Label
 var loadout_skin_label: Label
-var loadout_power_button: Button
+var loadout_ability_panel: PanelContainer
+var loadout_ability_icon: TextureRect
+var loadout_ability_label: Label
 var daily_label: Label
 var start_button: Button
 var shop_button: Button
@@ -222,6 +234,10 @@ var shop_heading: Label
 var shop_wallet: Label
 var shop_scroll: ScrollContainer
 var shop_cards: GridContainer
+var shop_navigation: HBoxContainer
+var shop_previous_button: Button
+var shop_page_label: Label
+var shop_next_button: Button
 var shop_medal_row: GridContainer
 var shop_medals: Label
 var shop_back: Button
@@ -290,6 +306,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		if state == GameState.RUNNING:
 			_process_touch_gesture(event)
+		elif state == GameState.SHOP:
+			_process_shop_scroll_gesture(event)
 		elif touch_tracking:
 			_reset_touch_gesture()
 		return
@@ -400,6 +418,44 @@ func _reset_touch_gesture() -> void:
 	touch_finger = -1
 	touch_action_committed = false
 
+func _reset_shop_touch_gesture() -> void:
+	shop_touch_tracking = false
+	shop_touch_finger = -1
+	shop_touch_start_y = 0.0
+	shop_touch_last_y = 0.0
+	shop_touch_dragging = false
+
+func _process_shop_scroll_gesture(event: InputEvent) -> void:
+	if not is_instance_valid(shop_scroll):
+		return
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			if shop_scroll.get_global_rect().has_point(touch.position):
+				shop_touch_tracking = true
+				shop_touch_finger = touch.index
+				shop_touch_start_y = touch.position.y
+				shop_touch_last_y = touch.position.y
+				shop_touch_dragging = false
+			return
+		if not shop_touch_tracking or touch.index != shop_touch_finger:
+			return
+		if shop_touch_dragging:
+			get_viewport().set_input_as_handled()
+		_reset_shop_touch_gesture()
+		_refresh_shop_navigation()
+		return
+	if event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		if not shop_touch_tracking or drag.index != shop_touch_finger:
+			return
+		if absf(drag.position.y - shop_touch_start_y) >= 12.0:
+			shop_touch_dragging = true
+		if shop_touch_dragging:
+			shop_scroll.scroll_vertical += int(round(shop_touch_last_y - drag.position.y))
+			get_viewport().set_input_as_handled()
+		shop_touch_last_y = drag.position.y
+
 func _move_player(direction: int) -> void:
 	player.move_lane(-direction if controls_reversed else direction)
 
@@ -420,7 +476,7 @@ func _start_run() -> void:
 	checkpoint_stage = 0
 	_shuffle_biome_sequence()
 	last_crash = "spin"
-	power_charge = 0.0
+	power_charge = float(GameManager.selected_ability().start_charge)
 	power_timer = 0.0
 	shield_active = false
 	_stop_power_effect()
@@ -440,7 +496,9 @@ func _start_run() -> void:
 		_show_toast("SWIPE SIDEWAYS • SWIPE UP TO JUMP • SWIPE DOWN TO DUCK")
 
 func _update_run(delta: float) -> void:
-	var time_scale := 0.62 if power_timer > 0.0 and GameManager.selected_power == 2 else 1.0
+	var ability_kind := GameManager.selected_ability_kind()
+	var slow_strength := clampf(0.68 - float(GameManager.selected_skin) * 0.012, 0.52, 0.68)
+	var time_scale := slow_strength if power_timer > 0.0 and ability_kind == GameManager.ABILITY_SLOW_MO else 1.0
 	var move_speed := speed * time_scale
 	speed = minf(31.0, speed + delta * 0.19)
 	distance += move_speed * delta * 0.72
@@ -470,7 +528,7 @@ func _update_run(delta: float) -> void:
 func _award_checkpoint(completed_tour: bool) -> void:
 	var reward := TOUR_REWARD if completed_tour else CHECKPOINT_REWARD
 	run_feathers += reward
-	power_charge = minf(100.0, power_charge + 18.0)
+	power_charge = minf(100.0, power_charge + 18.0 * float(GameManager.selected_ability().charge_rate))
 	if completed_tour:
 		_show_toast("TOUR COMPLETE!  +%d FEATHERS" % reward)
 	else:
@@ -537,9 +595,10 @@ func _power_aura_material(color: Color, alpha: float) -> StandardMaterial3D:
 
 func _start_power_effect() -> void:
 	var effect_colors := [Color("#4de9ff"), Color("#ff69b4"), Color("#918cff"), Color("#ffd85a")]
-	var effect_color: Color = effect_colors[clampi(GameManager.selected_power, 0, effect_colors.size() - 1)]
-	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
-	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if GameManager.selected_power == 0 else 0.065)
+	var ability_kind := GameManager.selected_ability_kind()
+	var effect_color: Color = effect_colors[clampi(ability_kind, 0, effect_colors.size() - 1)]
+	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, ability_kind + 1)
+	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if ability_kind == GameManager.ABILITY_SHIELD else 0.065)
 	for ring in power_effect_rings:
 		ring.material_override = _power_aura_material(effect_color, 0.82)
 	for icon in power_effect_icons:
@@ -585,33 +644,41 @@ func _update_power(delta: float) -> void:
 		slip_timer -= delta
 		if slip_timer <= 0.0:
 			controls_reversed = false
-	if GameManager.selected_power == 1 and power_timer > 0.0:
+	if GameManager.selected_ability_kind() == GameManager.ABILITY_MAGNET and power_timer > 0.0:
 		for item in feathers:
 			var node: Node3D = item.node
 			if is_instance_valid(node) and node.position.z > -18.0:
-				node.position.x = move_toward(node.position.x, player.position.x, delta * 10.0)
+				var pull_speed := 9.0 + float(GameManager.selected_skin) * 0.75
+				node.position.x = move_toward(node.position.x, player.position.x, delta * pull_speed)
 	_update_power_effect(delta)
 
 func _activate_power() -> void:
 	if power_charge < 100.0 or power_timer > 0.0:
-		_show_toast("Power charges from clean dodges")
+		_show_toast("%s charges from clean dodges" % str(GameManager.selected_ability().name).to_upper())
 		return
+	var ability := GameManager.selected_ability()
+	var ability_kind := int(ability.kind)
 	power_charge = 0.0
-	power_timer = 6.0
+	power_timer = float(ability.duration)
 	_start_power_effect()
-	match GameManager.selected_power:
-		0:
+	match ability_kind:
+		GameManager.ABILITY_SHIELD:
 			shield_active = true
-			_show_toast("SHIELD READY — one hit blocked!")
-		1:
-			_show_toast("FEATHER MAGNET!")
-		2:
-			_show_toast("SLOW-MO REFLEX!")
-		3:
-			_show_toast("SCORE RUSH — 2× combo charge!")
+			_show_toast("%s — one crash blocked!" % str(ability.name).to_upper())
+		GameManager.ABILITY_MAGNET:
+			_show_toast("%s — feathers fly to you!" % str(ability.name).to_upper())
+		GameManager.ABILITY_SLOW_MO:
+			_show_toast("%s — obstacles slowed!" % str(ability.name).to_upper())
+		GameManager.ABILITY_RESCUE:
+			shield_active = true
+			_show_toast("%s — crash protection!" % str(ability.name).to_upper())
 
 func _spawn_pattern() -> void:
+	if distance >= ALL_LANES_SKILL_DISTANCE and randf() < _all_lanes_skill_chance():
+		_spawn_all_lane_skill_row()
+		return
 	var blocked: Array[int] = []
+	var skill_routes: Array[Dictionary] = []
 	var obstacle_count := 2 if distance >= DOUBLE_OBSTACLE_DISTANCE and randf() < DOUBLE_OBSTACLE_CHANCE else 1
 	for i in obstacle_count:
 		var lane := randi_range(0, 2)
@@ -622,7 +689,19 @@ func _spawn_pattern() -> void:
 		if distance < 55.0:
 			types = ["wall", "bar", "cone"]
 		var kind: String = types[randi_range(0, types.size() - 1)]
-		_spawn_obstacle(kind, lane, -72.0 - i * 1.5)
+		var obstacle_z := -72.0 - i * 1.5
+		_spawn_obstacle(kind, lane, obstacle_z)
+		if kind in ["wall", "cone"]:
+			skill_routes.append({"lane": lane, "z": obstacle_z, "height_mode": "jump"})
+		elif kind in ["bar", "drone"]:
+			skill_routes.append({"lane": lane, "z": obstacle_z, "height_mode": "duck"})
+	if not skill_routes.is_empty() and randf() < SKILL_FEATHER_TRAIL_CHANCE:
+		var route: Dictionary = skill_routes.pick_random()
+		for i in range(4):
+			# The trail crosses the obstacle itself. Collecting the full line means
+			# committing to the same jump or duck that safely clears the hazard.
+			_spawn_feather(int(route.lane), float(route.z) + 5.4 - float(i) * 3.6, str(route.height_mode))
+		return
 	var open_lanes: Array[int] = []
 	for lane in range(3):
 		if lane not in blocked:
@@ -631,6 +710,21 @@ func _spawn_pattern() -> void:
 		var feather_lane: int = open_lanes.pick_random()
 		for i in range(4):
 			_spawn_feather(feather_lane, -64.0 - i * 2.5)
+
+func _all_lanes_skill_chance() -> float:
+	var ramp_progress := clampf((distance - ALL_LANES_SKILL_DISTANCE) / ALL_LANES_SKILL_RAMP_DISTANCE, 0.0, 1.0)
+	return lerpf(ALL_LANES_SKILL_CHANCE, ALL_LANES_SKILL_MAX_CHANCE, ramp_progress)
+
+func _spawn_all_lane_skill_row(forced_mode := "", row_z := -72.0) -> void:
+	# A full row always asks for one consistent action. Mixing a wall in one lane
+	# with a duck gate in another would turn a readable skill check into a guess.
+	var height_mode: String = forced_mode if forced_mode in ["jump", "duck"] else ("jump" if randf() < 0.5 else "duck")
+	var kind: String = (["wall", "cone"] if height_mode == "jump" else ["bar", "drone"]).pick_random()
+	for lane in range(3):
+		_spawn_obstacle(kind, lane, row_z)
+	# The centered trail advertises both the safe timing and the required move.
+	for feather_index in range(4):
+		_spawn_feather(1, row_z + 5.4 - float(feather_index) * 3.6, height_mode)
 
 func _next_spawn_gap() -> float:
 	var difficulty_reduction := minf(SPAWN_GAP_RAMP_REDUCTION, distance / 600.0)
@@ -791,13 +885,14 @@ func _animate_rival_stride(pivot: Node3D, leg: Sprite3D, drive: float, is_left: 
 	pivot.position.z = -0.02 + drive * 0.22
 	leg.render_priority = 3 if drive > 0.0 else 2
 
-func _spawn_feather(lane: int, z: float) -> void:
+func _spawn_feather(lane: int, z: float, height_mode := "normal") -> void:
+	var base_height: float = {"jump": 2.55, "duck": 0.72}.get(height_mode, 1.55)
 	var node := Node3D.new()
-	node.name = "GoldenFeatherPickup"
-	node.position = Vector3(LANES[lane], 1.55, z)
+	node.name = "%sGoldenFeatherPickup" % str(height_mode).capitalize()
+	node.position = Vector3(LANES[lane], base_height, z)
 	obstacle_root.add_child(node)
 	_sprite_3d(node, _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, 0), Vector3.ZERO, 0.00235, "GeneratedFeatherArt")
-	feathers.append({"node": node, "lane": lane, "phase": randf() * TAU})
+	feathers.append({"node": node, "lane": lane, "phase": randf() * TAU, "base_height": base_height, "height_mode": height_mode})
 
 func _move_objects(delta: float, move_speed: float) -> void:
 	for item in obstacles.duplicate():
@@ -832,12 +927,22 @@ func _move_objects(delta: float, move_speed: float) -> void:
 			continue
 		node.position.z += move_speed * delta
 		node.rotation.y += delta * 4.5
-		node.position.y = 1.55 + sin(elapsed * 4.0 + item.phase) * 0.18
-		if node.position.z > -1.0 and node.position.z < 1.8 and absf(node.position.x - player.position.x) < 0.95:
+		node.position.y = float(item.base_height) + sin(elapsed * 4.0 + item.phase) * 0.18
+		if node.position.z > -1.0 and node.position.z < 1.8 and absf(node.position.x - player.position.x) < 0.95 and _can_collect_feather(item):
 			_collect_feather(item)
 		elif node.position.z > 10.0:
 			feathers.erase(item)
 			node.queue_free()
+
+func _can_collect_feather(item: Dictionary) -> bool:
+	if GameManager.selected_ability_kind() == GameManager.ABILITY_MAGNET and power_timer > 0.0:
+		return true
+	match str(item.get("height_mode", "normal")):
+		"jump":
+			return player.position.y >= 0.75
+		"duck":
+			return player.ducking
+	return true
 
 func _obstacle_hits(kind: String) -> bool:
 	match kind:
@@ -857,8 +962,7 @@ func _clean_dodge(near: bool) -> void:
 	if near:
 		near_misses += 1
 	var charge_gain := 22.0
-	if GameManager.selected_power == 3 and power_timer > 0.0:
-		charge_gain = 44.0
+	charge_gain *= float(GameManager.selected_ability().charge_rate)
 	power_charge = minf(100.0, power_charge + charge_gain)
 	if combo >= 4:
 		_show_toast("%d× CLEAN COMBO" % combo)
@@ -866,7 +970,7 @@ func _clean_dodge(near: bool) -> void:
 func _collect_feather(item: Dictionary) -> void:
 	var node: Node3D = item.node
 	run_feathers += combo
-	power_charge = minf(100.0, power_charge + 5.0)
+	power_charge = minf(100.0, power_charge + 5.0 * float(GameManager.selected_ability().charge_rate))
 	_play_sound(pickup_sound, -8.0)
 	feathers.erase(item)
 	node.queue_free()
@@ -881,12 +985,14 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 	if state != GameState.RUNNING:
 		return
 	if shield_active:
-		shield_active = false
-		power_timer = 0.0
-		_stop_power_effect()
+		var continuous_rescue := GameManager.selected_ability_kind() == GameManager.ABILITY_RESCUE and power_timer > 0.0
+		if not continuous_rescue:
+			shield_active = false
+			power_timer = 0.0
+			_stop_power_effect()
 		combo = 1
 		_spawn_puff(player.global_position + Vector3(0, 2.4, 0), Color("#9be7ff"), 12)
-		_show_toast("SHIELD SAVE!")
+		_show_toast("%s SAVE!" % str(GameManager.selected_ability().name).to_upper())
 		return
 	state = GameState.HIT
 	power_timer = 0.0
@@ -1286,7 +1392,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(menu_tagline, 31)
 		_set_font_size(menu_wallet, 30)
 		_set_font_size(loadout_skin_label, 27)
-		_set_font_size(loadout_power_button, 30)
+		_set_font_size(loadout_ability_label, 27)
 		_set_font_size(daily_label, 26)
 		_set_font_size(start_button, 40)
 		_set_font_size(shop_button, 32)
@@ -1294,7 +1400,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(control_help_label, 23)
 		_set_font_size(privacy_button, 20)
 		_set_font_size(music_toggle_button, 20)
-		loadout_power_button.custom_minimum_size.y = 72.0
+		loadout_ability_panel.custom_minimum_size.y = 82.0
 		daily_label.custom_minimum_size.y = 60.0
 		start_button.custom_minimum_size.y = 126.0
 		shop_button.custom_minimum_size.y = 92.0
@@ -1346,7 +1452,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(menu_tagline, 16)
 		_set_font_size(menu_wallet, 18)
 		_set_font_size(loadout_skin_label, 16)
-		_set_font_size(loadout_power_button, 17)
+		_set_font_size(loadout_ability_label, 16)
 		_set_font_size(daily_label, 15)
 		_set_font_size(start_button, 25)
 		_set_font_size(shop_button, 17)
@@ -1354,7 +1460,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_set_font_size(control_help_label, 14)
 		_set_font_size(privacy_button, 14)
 		_set_font_size(music_toggle_button, 14)
-		loadout_power_button.custom_minimum_size.y = 54.0
+		loadout_ability_panel.custom_minimum_size.y = 58.0
 		daily_label.custom_minimum_size.y = 46.0
 		start_button.custom_minimum_size.y = 66.0
 		shop_button.custom_minimum_size.y = 50.0
@@ -1397,7 +1503,7 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 	if mobile_mode:
 		control_help_label.text = "SWIPE TO MOVE  •  SWIPE UP TO JUMP  •  SWIPE DOWN TO DUCK"
 	else:
-		control_help_label.text = "ARROW KEYS TO MOVE  •  SPACE TO JUMP  •  E FOR POWER"
+		control_help_label.text = "ARROW KEYS TO MOVE  •  SPACE TO JUMP  •  E FOR RUNNER GIFT"
 
 func _set_font_size(control: Control, font_size: int) -> void:
 	if is_instance_valid(control):
@@ -1417,6 +1523,10 @@ func _apply_shop_layout() -> void:
 		shop_cards.add_theme_constant_override("v_separation", 24)
 		shop_scroll.custom_minimum_size.y = 1010.0
 		shop_cards.custom_minimum_size.y = 0.0
+		shop_navigation.custom_minimum_size.y = 76.0
+		_set_font_size(shop_previous_button, 21)
+		_set_font_size(shop_page_label, 20)
+		_set_font_size(shop_next_button, 21)
 		shop_medal_row.columns = 5
 		shop_medal_row.add_theme_constant_override("h_separation", 14)
 		shop_medal_row.add_theme_constant_override("v_separation", 8)
@@ -1439,6 +1549,10 @@ func _apply_shop_layout() -> void:
 		shop_cards.add_theme_constant_override("v_separation", 12)
 		shop_scroll.custom_minimum_size.y = 284.0
 		shop_cards.custom_minimum_size.y = 0.0
+		shop_navigation.custom_minimum_size.y = 42.0
+		_set_font_size(shop_previous_button, 14)
+		_set_font_size(shop_page_label, 13)
+		_set_font_size(shop_next_button, 14)
 		shop_medal_row.columns = 9
 		shop_medal_row.add_theme_constant_override("h_separation", 8)
 		shop_medal_row.add_theme_constant_override("v_separation", 0)
@@ -1454,6 +1568,7 @@ func _apply_shop_layout() -> void:
 		_style_shop_card(card)
 	for medal_bubble in shop_medal_row.get_children():
 		medal_bubble.custom_minimum_size = Vector2(112, 104) if portrait_layout else Vector2(62, 48)
+	call_deferred("_refresh_shop_navigation")
 
 func _apply_result_layout() -> void:
 	if not is_instance_valid(result_panel):
@@ -2029,12 +2144,35 @@ func _build_ui() -> void:
 	loadout_skin_label = _label("", 16, Color("#d9f5ff"))
 	loadout_skin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	menu_box.add_child(loadout_skin_label)
-	loadout_power_button = _button("", Color("#173c5d"), Color("#51ded1"), 17)
-	loadout_power_button.expand_icon = true
-	loadout_power_button.add_theme_constant_override("icon_max_width", 46)
-	loadout_power_button.custom_minimum_size.y = 54
-	loadout_power_button.pressed.connect(_cycle_power)
-	menu_box.add_child(loadout_power_button)
+	loadout_ability_panel = PanelContainer.new()
+	loadout_ability_panel.name = "RunnerAbilityCard"
+	loadout_ability_panel.custom_minimum_size.y = 58
+	loadout_ability_panel.add_theme_stylebox_override("panel", _panel_style(Color("#173c5d"), Color("#51ded1"), 3, 26))
+	menu_box.add_child(loadout_ability_panel)
+	var ability_margin := MarginContainer.new()
+	ability_margin.add_theme_constant_override("margin_left", 16)
+	ability_margin.add_theme_constant_override("margin_right", 16)
+	ability_margin.add_theme_constant_override("margin_top", 6)
+	ability_margin.add_theme_constant_override("margin_bottom", 6)
+	loadout_ability_panel.add_child(ability_margin)
+	var ability_row := HBoxContainer.new()
+	ability_row.add_theme_constant_override("separation", 12)
+	ability_margin.add_child(ability_row)
+	loadout_ability_icon = TextureRect.new()
+	loadout_ability_icon.name = "RunnerAbilityIcon"
+	loadout_ability_icon.custom_minimum_size = Vector2(46, 46)
+	loadout_ability_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	loadout_ability_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	loadout_ability_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	loadout_ability_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ability_row.add_child(loadout_ability_icon)
+	loadout_ability_label = _label("", 16, Color.WHITE)
+	loadout_ability_label.name = "RunnerAbilityDescription"
+	loadout_ability_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	loadout_ability_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	loadout_ability_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_set_bold(loadout_ability_label)
+	ability_row.add_child(loadout_ability_label)
 	daily_label = _label("", 15, Color("#ffe9a6"))
 	daily_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	daily_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -2059,7 +2197,7 @@ func _build_ui() -> void:
 	leaderboard_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	leaderboard_button.pressed.connect(_show_global_scores)
 	discovery_row.add_child(leaderboard_button)
-	control_help_label = _label("ARROW KEYS TO MOVE  •  SPACE TO JUMP  •  E FOR POWER", 14, Color("#c8d9e9"))
+	control_help_label = _label("ARROW KEYS TO MOVE  •  SPACE TO JUMP  •  E FOR RUNNER GIFT", 14, Color("#c8d9e9"))
 	control_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	control_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	control_help_label.custom_minimum_size.y = 34
@@ -2343,6 +2481,29 @@ func _build_ui() -> void:
 	shop_cards.add_theme_constant_override("h_separation", 12)
 	shop_cards.add_theme_constant_override("v_separation", 12)
 	shop_scroll.add_child(shop_cards)
+	shop_navigation = HBoxContainer.new()
+	shop_navigation.name = "RunnerGalleryNavigation"
+	shop_navigation.add_theme_constant_override("separation", 12)
+	shop_box.add_child(shop_navigation)
+	shop_previous_button = _button("▲  PREVIOUS", Color("#385f8f"), Color("#8cc9ef"), 14)
+	shop_previous_button.name = "PreviousRunnersButton"
+	shop_previous_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_previous_button.pressed.connect(_scroll_shop_page.bind(-1))
+	shop_navigation.add_child(shop_previous_button)
+	shop_page_label = _label("SWIPE TO SEE ALL 12", 14, Color("#34516c"))
+	shop_page_label.name = "RunnerGalleryPageLabel"
+	shop_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_page_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shop_page_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_page_label.add_theme_constant_override("outline_size", 0)
+	_set_bold(shop_page_label)
+	shop_navigation.add_child(shop_page_label)
+	shop_next_button = _button("MORE  ▼", Color("#e45875"), Color("#ffb6c7"), 14)
+	shop_next_button.name = "MoreRunnersButton"
+	shop_next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shop_next_button.pressed.connect(_scroll_shop_page.bind(1))
+	shop_navigation.add_child(shop_next_button)
+	shop_scroll.get_v_scroll_bar().value_changed.connect(func(_value: float) -> void: _refresh_shop_navigation())
 	shop_medal_row = GridContainer.new()
 	shop_medal_row.name = "GeneratedMedalGallery"
 	shop_medal_row.columns = 9
@@ -2405,6 +2566,7 @@ func _build_ui() -> void:
 	canvas.add_child(ad_preview_label)
 
 func _show_menu() -> void:
+	_reset_shop_touch_gesture()
 	state = GameState.MENU
 	power_timer = 0.0
 	shield_active = false
@@ -2423,16 +2585,15 @@ func _show_menu() -> void:
 	_refresh_menu()
 
 func _refresh_menu() -> void:
-	menu_wallet.text = "◆  %d FEATHERS     BEST  %dm" % [GameManager.total_feathers, int(GameManager.best_distance)]
+	menu_wallet.text = "◆  %s FEATHERS     BEST  %dm" % [_format_number(GameManager.total_feathers), int(GameManager.best_distance)]
 	loadout_skin_label.text = "RUNNER  •  %s" % GameManager.SKINS[GameManager.selected_skin].to_upper()
-	loadout_power_button.text = "POWER  •  %s     TAP TO CHANGE" % GameManager.POWERS[GameManager.selected_power].to_upper()
-	loadout_power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
+	var ability := GameManager.selected_ability()
+	loadout_ability_label.text = "%s\n%s  •  %.1fs  •  starts %d%% charged" % [
+		str(ability.name).to_upper(), str(ability.description), float(ability.duration), int(ability.start_charge),
+	]
+	loadout_ability_icon.texture = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.kind) + 1)
 	daily_label.text = "✓  DAILY CHALLENGE COMPLETE" if GameManager.daily_complete else "DAILY CHALLENGE  •  COLLECT 15 FEATHERS  •  REWARD ◆25"
 	_update_music_button()
-
-func _cycle_power() -> void:
-	GameManager.set_power(GameManager.selected_power + 1)
-	_refresh_menu()
 
 func _open_privacy_policy() -> void:
 	var error := OS.shell_open(PRIVACY_POLICY_URL)
@@ -2442,6 +2603,7 @@ func _open_privacy_policy() -> void:
 
 func _show_shop() -> void:
 	state = GameState.SHOP
+	_reset_shop_touch_gesture()
 	menu_layer.visible = false
 	shop_layer.visible = true
 	_rebuild_shop_cards()
@@ -2449,8 +2611,40 @@ func _show_shop() -> void:
 	# reopening after inspecting premium colors can strand landscape players
 	# halfway between the two card rows.
 	shop_scroll.scroll_vertical = 0
+	call_deferred("_refresh_shop_navigation")
+
+func _shop_page_count() -> int:
+	return maxi(1, int(ceil(float(GameManager.SKINS.size()) / float(maxi(1, shop_cards.columns)))))
+
+func _scroll_shop_page(direction: int) -> void:
+	if not is_instance_valid(shop_scroll):
+		return
+	var bar := shop_scroll.get_v_scroll_bar()
+	var max_scroll := maxi(0, int(ceil(bar.max_value - bar.page)))
+	var page_count := _shop_page_count()
+	var current_page := 1
+	if max_scroll > 0 and page_count > 1:
+		current_page = clampi(int(round(float(shop_scroll.scroll_vertical) / float(max_scroll) * float(page_count - 1))) + 1, 1, page_count)
+	var target_page := clampi(current_page + direction, 1, page_count)
+	shop_scroll.scroll_vertical = int(round(float(max_scroll) * float(target_page - 1) / float(maxi(1, page_count - 1))))
+	_refresh_shop_navigation()
+
+func _refresh_shop_navigation() -> void:
+	if not is_instance_valid(shop_scroll) or not is_instance_valid(shop_page_label):
+		return
+	var bar := shop_scroll.get_v_scroll_bar()
+	var max_scroll := maxi(0, int(ceil(bar.max_value - bar.page)))
+	var page_count := _shop_page_count()
+	var current_page := 1
+	if max_scroll > 0 and page_count > 1:
+		current_page = clampi(int(round(float(shop_scroll.scroll_vertical) / float(max_scroll) * float(page_count - 1))) + 1, 1, page_count)
+	shop_previous_button.disabled = shop_scroll.scroll_vertical <= 0
+	shop_next_button.disabled = shop_scroll.scroll_vertical >= max_scroll
+	shop_page_label.text = "PAGE %d OF %d  •  SWIPE" % [current_page, page_count]
 
 func _show_global_scores() -> void:
+	if not LeaderboardService.sign_in_failed.is_connected(_on_play_games_sign_in_failed):
+		LeaderboardService.sign_in_failed.connect(_on_play_games_sign_in_failed)
 	match LeaderboardService.show_global_scores():
 		"":
 			pass
@@ -2461,12 +2655,15 @@ func _show_global_scores() -> void:
 		_:
 			_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
 
+func _on_play_games_sign_in_failed() -> void:
+	_show_toast("PLAY GAMES SIGN-IN FAILED — CHECK SHA-1 AND TESTERS")
+
 func _rebuild_shop_cards() -> void:
 	for child in shop_cards.get_children():
 		child.queue_free()
 	for child in shop_medal_row.get_children():
 		child.queue_free()
-	shop_wallet.text = "◆  %d FEATHERS     •     %d OF %d COLORS UNLOCKED" % [GameManager.total_feathers, GameManager.owned_skins.size(), GameManager.SKINS.size()]
+	shop_wallet.text = "◆  %s FEATHERS     •     %d OF %d RUNNERS UNLOCKED" % [_format_number(GameManager.total_feathers), GameManager.owned_skins.size(), GameManager.SKINS.size()]
 	var earned_medals := 0
 	var medal_colors := [
 		Color("#20c7bc"), Color("#54c7f2"), Color("#8f75f5"), Color("#ff9c63"),
@@ -2534,7 +2731,21 @@ func _rebuild_shop_cards() -> void:
 		name_label.add_theme_constant_override("outline_size", 0)
 		_set_bold(name_label)
 		box.add_child(name_label)
-		var detail_text := "READY TO WEAR" if index in GameManager.owned_skins else "◆ %d FEATHERS" % GameManager.SKIN_COSTS[index]
+		var ability: Dictionary = GameManager.RUNNER_ABILITIES[index]
+		var ability_detail := _label("%s\n%s  •  %.1fs  •  starts %d%%" % [
+			str(ability.name).to_upper(),
+			str(ability.description),
+			float(ability.duration),
+			int(ability.start_charge),
+		], 13, skin_colors[index].darkened(0.38))
+		ability_detail.name = "RunnerAbility"
+		ability_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ability_detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		ability_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ability_detail.add_theme_constant_override("outline_size", 0)
+		_set_bold(ability_detail)
+		box.add_child(ability_detail)
+		var detail_text := "READY TO WEAR" if index in GameManager.owned_skins else "◆ %s FEATHERS" % _format_number(GameManager.SKIN_COSTS[index])
 		var detail := _label(detail_text, 14, Color("#6d4963"))
 		detail.name = "RunnerPrice"
 		detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2551,6 +2762,7 @@ func _rebuild_shop_cards() -> void:
 		box.add_child(action)
 		_style_shop_card(card)
 	_apply_shop_layout()
+	call_deferred("_refresh_shop_navigation")
 
 func _style_shop_card(card: Control) -> void:
 	if not is_instance_valid(card) or not card.has_meta("accent_color"):
@@ -2567,27 +2779,32 @@ func _style_shop_card(card: Control) -> void:
 	var portrait_bubble := card.get_node("CardMargin/CardBox/PortraitBubble") as PanelContainer
 	var portrait := card.get_node("CardMargin/CardBox/PortraitBubble/RunnerPortrait") as TextureRect
 	var name_label := card.get_node("CardMargin/CardBox/RunnerName") as Label
+	var ability_detail := card.get_node("CardMargin/CardBox/RunnerAbility") as Label
 	var detail := card.get_node("CardMargin/CardBox/RunnerPrice") as Label
 	var action := card.get_node("CardMargin/CardBox/RunnerAction") as Button
 	if portrait_layout:
-		card.custom_minimum_size = Vector2(400, 492)
+		card.custom_minimum_size = Vector2(400, 570)
 		for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
 			margin.add_theme_constant_override(side, 24)
 		box.add_theme_constant_override("separation", 14)
 		portrait_bubble.custom_minimum_size = Vector2(280, 270)
 		portrait.custom_minimum_size = Vector2(260, 250)
 		_set_font_size(name_label, 29)
+		_set_font_size(ability_detail, 19)
+		ability_detail.custom_minimum_size.y = 58
 		_set_font_size(detail, 20)
 		_set_font_size(action, 22)
 		action.custom_minimum_size.y = 68
 	else:
-		card.custom_minimum_size = Vector2(205, 276)
+		card.custom_minimum_size = Vector2(225, 332)
 		for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
 			margin.add_theme_constant_override(side, 12)
 		box.add_theme_constant_override("separation", 7)
 		portrait_bubble.custom_minimum_size = Vector2(126, 122)
 		portrait.custom_minimum_size = Vector2(118, 114)
 		_set_font_size(name_label, 18)
+		_set_font_size(ability_detail, 12)
+		ability_detail.custom_minimum_size.y = 43
 		_set_font_size(detail, 13)
 		_set_font_size(action, 14)
 		action.custom_minimum_size.y = 42
@@ -2634,14 +2851,16 @@ func _update_hud() -> void:
 	var reward := TOUR_REWARD if stage_in_tour == biome_sequence.size() - 1 else CHECKPOINT_REWARD
 	goal_detail_label.text = "NEXT: %s  •  %dm  •  +%d FEATHERS" % [BIOMES[next_biome_index].name.to_upper(), meters_remaining, reward]
 	power_bar.value = power_charge
-	var power_name: String = GameManager.POWERS[GameManager.selected_power]
-	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, GameManager.selected_power + 1)
+	var ability := GameManager.selected_ability()
+	var ability_name := str(ability.name)
+	var ability_kind := int(ability.kind)
+	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, ability_kind + 1)
 	if power_charge >= 100.0:
-		power_button.text = "%s READY!\n%s" % [power_name.to_upper(), "TAP TO USE" if mobile_mode else "PRESS E"]
+		power_button.text = "%s READY!\n%s" % [ability_name.to_upper(), "TAP TO USE" if mobile_mode else "PRESS E"]
 	else:
-		power_button.text = "%s  %d%%\nDODGE TO CHARGE" % [power_name.to_upper(), int(power_charge)]
+		power_button.text = "%s  %d%%\nDODGE TO CHARGE" % [ability_name.to_upper(), int(power_charge)]
 	if power_timer > 0.0:
-		power_button.text = "%s ACTIVE\n%.1f SECONDS" % [power_name.to_upper(), power_timer]
+		power_button.text = "%s ACTIVE\n%.1f SECONDS" % [ability_name.to_upper(), power_timer]
 	power_button.modulate = Color.WHITE if power_charge >= 100.0 or power_timer > 0.0 else Color(0.84, 0.92, 0.95, 1.0)
 
 func _medal_cell(medal_name: String) -> int:
@@ -2667,6 +2886,14 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_outline_color", Color(0.008, 0.025, 0.055, 0.82))
 	label.add_theme_constant_override("outline_size", 3)
 	return label
+
+func _format_number(value: int) -> String:
+	var digits := str(maxi(0, value))
+	var comma_index := digits.length() - 3
+	while comma_index > 0:
+		digits = digits.left(comma_index) + "," + digits.substr(comma_index)
+		comma_index -= 3
+	return digits
 
 func _set_bold(control: Control) -> void:
 	control.add_theme_font_override("font", load(UI_FONT_BOLD_PATH))

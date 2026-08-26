@@ -48,7 +48,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | Electric Lime skin | None | Premium lime/charcoal portrait plus a high-energy gameplay color treatment |
 | Royal Peacock skin | None | Premium teal/royal-purple portrait plus a jewel-toned gameplay color treatment |
 | Rival runner | Pink spheres/capsules | Cute rear-view competitive pink emu/ostrich split into a body, two independently animated stride layers, and a planted shadow |
-| Run motion | Primitive leg/wing swing | Two independently masked high-detail leg/shoe layers pivot from the hips with alternating extension, recovery lift, depth, body bob, lean, and shadow |
+| Run motion | Primitive leg/wing swing | Generated six-frame rear-view leg/shoe sprite sheet with contact, push-off, passing, and mirrored stride poses, plus body bob, lean, and shadow |
 | Jump/duck | Bone-like primitive transforms | Sprite lift/squash/tilt while preserving collision behavior |
 | Trip/gate flip/spin | Whole primitive rig rotation | Forward stumble for low hits, one neck-pivot revolution over gates, and a separate airborne spin using finished character art |
 
@@ -63,14 +63,16 @@ This is the production checklist for bringing every visible gameplay element up 
 | Slippery patch | Flattened transparent sphere | Glossy splash-shaped puddle |
 | Feather collectible | Capsule and box | Glowing cream-and-gold feather |
 
-## Power-ups, rewards, and effects
+Most feather trails remain on open lanes. Some obstacle patterns place high feathers across low hazards or low feathers beneath overhead hazards, so the entire trail is collected only by committing to the correct jump or duck. After 650 meters, occasional three-lane commitment rows block every lane with one consistent hazard family and use the same feather-height cue to telegraph the required action.
+
+## Runner gifts, rewards, and effects
 
 | Visible object | Current render | Replacement |
 | --- | --- | --- |
-| Shield | Text only | Puffy teal shield buddies orbit inside a luminous cyan protection shell for the entire active timer |
-| Magnet | Text only | Horseshoe magnets orbit the runner inside a pink attraction aura for the entire active timer |
-| Slow-Mo | Text only | Friendly stopwatches orbit inside a lavender time-warp aura for the entire active timer |
-| Score Rush | Text only | Winged gold stars orbit inside a sunny score aura for the entire active timer |
+| Guard gift | Text only | Puffy teal shield buddies orbit inside a luminous cyan protection shell for the entire active timer |
+| Feather-pull gift | Text only | Horseshoe magnets orbit the runner inside a pink attraction aura for the entire active timer |
+| Reflex gift | Text only | Friendly stopwatches orbit inside a lavender time-warp aura for the entire active timer |
+| Rescue gift | Text only | Winged gold stars orbit inside a sunny crash-rescue aura for the entire active timer |
 | Collision burst | Primitive capsules | Feather/dust/sparkle effect sprites |
 | Bronze/Silver/Gold medals | Text only | Cute winged medal badges |
 
@@ -101,7 +103,7 @@ This is the production checklist for bringing every visible gameplay element up 
 | Screen/object | Current render | Replacement or polish |
 | --- | --- | --- |
 | Race dashboard | Unlabeled four-value bar | Three large labeled stat cards plus Tour/Stage, current biome, next-world distance, reward, and checkpoint progress |
-| Power button | Detached meter and tiny corner button | Animated floating ability bubble beside the runner with power art, charge instructions, embedded meter, mobile “Tap to use” state, and a visible seconds-remaining readout while its matching world aura follows the ostrich |
+| Runner gift bubble | Detached meter and tiny corner button | Animated floating gift bubble beside the runner with ability art, charge instructions, embedded meter, mobile “Tap to use” state, and a visible seconds-remaining readout while its matching world aura follows the ostrich |
 | Skin shop cards | Pastel candy cards | Twelve large character portraits, colored portrait bubbles, chunky unlock/wear buttons, and a responsive scrolling 2-column phone layout |
 | Biome medals | Medal bubble gallery | Nine individually tinted, rounded badge bubbles with a readable earned-medal summary |
 | Startup menu | Dimensional title menu | Oversized responsive glass card, extra-rounded candy controls, bundled readable type, clear CTA hierarchy, stat/loadout pills, and a quiet in-card Privacy & Data footer |
@@ -165,8 +167,8 @@ The six original surface cells are also losslessly split into `gameplay/surfaces
 
 All generated files are stored under `assets/generated/gameplay/` and consumed by code. Existing procedural collision and movement logic remains authoritative even when its placeholder geometry is hidden.
 
-The eight premium additions use newly generated front portraits in the store. On the track they reuse the proven layered rear-running plates with distinct palette modulation, preserving the independently animated legs and readable rear camera while keeping the Android package lean.
+The eight premium additions use newly generated front portraits in the store. On the track they reuse the proven rear body plate and generated six-pose leg cycle with distinct palette modulation, preserving the readable follow camera while keeping the Android package lean. Each of the twelve shop cards also names that ostrich's intrinsic gift and its progressively stronger duration, starting charge, and recharge rate.
 
 ## Wardrobe progression target
 
-The twelve-color collection costs 700,000 feathers in total. The paid ladder is 1,000, 3,500, 7,500, 14,000, 24,000, 40,000, 60,000, 85,000, 115,000, 150,000, and 200,000 feathers. Prices deliberately rise with rarity so the early wardrobe gives a reachable first goal while the complete collection remains a multi-hour achievement, including for skilled players who sustain the 9× pickup multiplier. The smoke test enforces twelve entries, increasing prices, and the full 700,000-feather total to prevent accidental economy regressions.
+Classic remains free so every new player can run. The other eleven runners cost 25,000, 75,000, 150,000, 300,000, 500,000, 750,000, 1,000,000, 1,500,000, 2,250,000, 3,500,000, and 5,000,000 feathers. The complete collection costs 15,050,000 feathers, making every new runner a major long-term achievement even for skilled players who sustain the 9× pickup multiplier. The smoke test enforces twelve entries, strictly increasing paid prices, and the full prestige total to prevent accidental economy regressions.

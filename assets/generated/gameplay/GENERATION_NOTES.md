@@ -1,6 +1,6 @@
 # Gameplay art generation notes
 
-All assets in this directory were created for Ostrich Dash on 2026-08-23 and 2026-08-24 with Codex's built-in image-generation workflow. The existing `ostrich_dash_key_art.png`, `ostrich_dash_icon.png`, and biome vistas were used only as character/style/palette/lighting references. No third-party game art, logos, brands, or copyrighted characters were used.
+All assets in this directory were created for Ostrich Dash from 2026-08-23 through 2026-08-25 with Codex's built-in image-generation workflow. The existing `ostrich_dash_key_art.png`, `ostrich_dash_icon.png`, and biome vistas were used only as character/style/palette/lighting references. No third-party game art, logos, brands, or copyrighted characters were used.
 
 ## Shared direction
 
@@ -28,11 +28,14 @@ Front-facing plates are reserved for the menu and skin shop. Gameplay deliberate
 - `runner_golden_back.png`: rear-view Golden runner with amber/chocolate plumage and sunshine-gold gear.
 - `runner_bubblegum_back.png`: rear-view Bubblegum runner with cream/pink plumage and candy-pink gear.
 - `rival_runner_back.png`: rear-view pink-and-coral rival, oriented in the same down-track direction.
-- `runner_*_body_back.png`: four rear-view, legless production body layers. These sit in front of two independently masked leg copies so the original detailed legs and shoes can alternate through a real-time stride without double images.
+- `runner_*_body_back.png`: four rear-view, legless production body layers. These sit in front of the generated run-cycle sheet so only one clean pair of legs is visible at a time.
+- `runner_classic_legs_run_sheet.png`: transparent 3×2 sheet containing six rear-view leg-and-shoe poses—contact, push-off, passing, then mirrored—with consistent hip anchors for a planted, readable run cycle.
 
 Rear-view generation prompt family: isolated full-body premium animated-film 3D ostrich runner, viewed directly from behind and slightly above as if followed by a game camera, centered mid-stride running away, transparent background, readable feather fan and legs, no face/front view, text, logo, scenery, track, shadow, or duplicate character. Each skin retained its established palette and accessories. The built-in image-generation workflow produced one image per skin; edge-connected neutral checker pixels were then mechanically converted to true alpha with `scripts/ci/remove_checker_alpha.gd`.
 
 Legless body edit prompt family: remove only both legs and running shoes from the matching rear-view skin; naturally complete the underside with matching feathers; preserve the exact rear view, scale, centered framing, head, neck, visor, body, and tail fan; transparent background; no shadow, text, watermark, or added object. The image tool's RGB previews baked their neutral checker, so only the edited feather underside was retained: the untouched upper character uses the original RGBA pixels, while the lower edit received a saturation/darkness alpha reconstruction and a hard transparent safety cutoff below the body. All four final layers were visually inspected and validated as 1024×1536 RGBA.
+
+Run-cycle sheet prompt: precise object edit using `runner_classic_back.png` as the anatomy and material reference; render only the same two coral-scaled ostrich legs and teal running shoes from the rear in six sequential contact, push-off, passing, and mirrored poses; keep identical hip anchors, shoe tread, laces, proportions, lighting, and animated-film 3D finish; transparent background; no body, track, shadow, text, grid, duplicate character, or extra legs. It was generated in Codex's built-in image-generation mode. The built-in background-extraction edit was moderation-blocked, so the project's edge-connected neutral-checker removal script produced the final true-alpha RGBA sheet without altering the colored leg art.
 
 ## Atlas prompts and fixed cell maps
 
@@ -113,8 +116,8 @@ Every transparent runtime asset is validated with `scripts/ci/check_image_alpha.
 
 - Generated art is consumed by `scripts/dash_player.gd` and `scripts/main.gd`.
 - Rear-facing runner plates are used on the track; front-facing runner plates remain in the skin shop.
-- Aurora, Emerald, Sunset, Frost, Celestial, Rose Gold, Electric Lime, and Royal Peacock were produced in built-in precise-object-edit mode. Their prompts preserved the exact ostrich identity, anatomy, running pose, scale, framing, full body, and both shoes; changed only the named feather/accessory palette; requested a dark coordinated studio vignette and detailed feathers/fabric/rubber; and prohibited text, logos, watermarks, crops, and extra objects. Gameplay applies matching tints to the existing layered rear plates so all twelve choices retain the finished alternating-leg animation.
+- Aurora, Emerald, Sunset, Frost, Celestial, Rose Gold, Electric Lime, and Royal Peacock were produced in built-in precise-object-edit mode. Their prompts preserved the exact ostrich identity, anatomy, running pose, scale, framing, full body, and both shoes; changed only the named feather/accessory palette; requested a dark coordinated studio vignette and detailed feathers/fabric/rubber; and prohibited text, logos, watermarks, crops, and extra objects. Gameplay applies matching tints to the rear body and six-pose leg sheet so all twelve choices retain the finished run animation.
 - Classic Stadium uses only its single complete vista at runtime. The former crowd/roof/rail layering and duplicated foreground plates are intentionally disabled.
 - Hidden procedural player geometry remains only as an animation/collision rig.
 - `tests/art_capture.gd` deterministically captures all nine biomes, both opposite run-stride extremes, both obstacle groups, effects, the trip pose, the neck-pivot gate flip, and the shop to `user://art_audit/`.
-- `tests/smoke_test.gd` asserts required art exists, both detailed leg layers alternate direction with readable amplitude, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.
+- `tests/smoke_test.gd` asserts required art exists, the six-frame detailed leg sheet is active, all runner gifts scale progressively, generated runner/obstacle/pickup sprites are active, primitive player meshes are hidden, and shop portraits/medals are populated.

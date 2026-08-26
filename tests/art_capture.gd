@@ -34,9 +34,11 @@ func _run() -> void:
 		game.refresh_ad_layout()
 		game._start_run()
 		game._clear_run_objects()
-		var power_filenames := ["shield", "magnet", "slow_mo", "score_rush"]
-		for power_index in range(game_manager.POWERS.size()):
-			game_manager.selected_power = power_index
+		var original_skin: int = game_manager.selected_skin
+		var power_filenames := ["feather_guard", "moon_magnet", "golden_reflex", "bubble_bounce"]
+		for power_index in range(4):
+			game_manager.selected_skin = power_index
+			game.player.apply_skin(power_index)
 			game.power_timer = 0.0
 			game.power_charge = 100.0
 			game._activate_power()
@@ -46,6 +48,8 @@ func _run() -> void:
 			_save_frame("portrait_power_%s.png" % power_filenames[power_index])
 			game.power_timer = 0.0
 			game._stop_power_effect()
+		game_manager.selected_skin = original_skin
+		game.player.apply_skin(original_skin)
 		game.queue_free()
 		for i in range(6):
 			await process_frame
@@ -199,6 +203,16 @@ func _run() -> void:
 	for i in range(8):
 		await process_frame
 	_save_frame("obstacles_special.png")
+	game._clear_run_objects()
+	game._spawn_all_lane_skill_row("jump", -8.0)
+	for i in range(8):
+		await process_frame
+	_save_frame("all_lanes_jump_route.png")
+	game._clear_run_objects()
+	game._spawn_all_lane_skill_row("duck", -8.0)
+	for i in range(8):
+		await process_frame
+	_save_frame("all_lanes_duck_route.png")
 	game._clear_run_objects()
 	game._spawn_obstacle("rival", 1, -2.4)
 	var rival_item: Dictionary = game.obstacles[-1]

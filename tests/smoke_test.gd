@@ -25,11 +25,11 @@ func _run() -> void:
 	if (
 		game_manager.SKINS.size() < 12
 		or game_manager.SKIN_COSTS.size() != game_manager.SKINS.size()
-		or game_manager.SKIN_COSTS[1] < 1000
-		or game_manager.SKIN_COSTS[-1] < 200000
-		or wardrobe_cost < 700000
+		or game_manager.SKIN_COSTS[1] < 25000
+		or game_manager.SKIN_COSTS[-1] < 5000000
+		or wardrobe_cost < 15050000
 	):
-		push_error("The expanded multi-hour wardrobe economy is missing or too inexpensive")
+		push_error("The prestige wardrobe economy is missing or too inexpensive")
 		quit(1)
 		return
 	for skin_index in range(1, game_manager.SKIN_COSTS.size()):
@@ -196,13 +196,29 @@ func _run() -> void:
 		push_error("The runner is missing its attached full-duration power aura rig")
 		quit(1)
 		return
-	var original_power: int = game_manager.selected_power
+	var original_skin: int = game_manager.selected_skin
 	var seen_power_icons := {}
 	var seen_power_colors := {}
+	if game_manager.RUNNER_ABILITIES.size() != game_manager.SKINS.size():
+		push_error("Every unlockable runner must have exactly one built-in gift")
+		quit(1)
+		return
+	for ability_index in range(1, game_manager.RUNNER_ABILITIES.size()):
+		var previous: Dictionary = game_manager.RUNNER_ABILITIES[ability_index - 1]
+		var current: Dictionary = game_manager.RUNNER_ABILITIES[ability_index]
+		if (
+			float(current.duration) <= float(previous.duration)
+			or float(current.start_charge) <= float(previous.start_charge)
+			or float(current.charge_rate) <= float(previous.charge_rate)
+		):
+			push_error("Runner gifts must become progressively easier to charge and longer-lasting")
+			quit(1)
+			return
 	game.state = game.GameState.RUNNING
 	game.player.visible = true
-	for power_index in range(game_manager.POWERS.size()):
-		game_manager.selected_power = power_index
+	for power_index in range(4):
+		game_manager.selected_skin = power_index
+		game.player.apply_skin(power_index)
 		game.power_charge = 100.0
 		game.power_timer = 0.0
 		game.elapsed = 0.75 + float(power_index)
@@ -227,11 +243,23 @@ func _run() -> void:
 			push_error("Power %d effect remained after its gameplay timer expired" % power_index)
 			quit(1)
 			return
-	if seen_power_icons.size() != game_manager.POWERS.size() or seen_power_colors.size() != game_manager.POWERS.size():
+	if seen_power_icons.size() != 4 or seen_power_colors.size() != 4:
 		push_error("Power effects do not have four distinct generated icons and aura colors")
 		quit(1)
 		return
-	game_manager.selected_power = original_power
+	game_manager.selected_skin = game_manager.RUNNER_ABILITIES.size() - 1
+	game.power_charge = 0.0
+	game._clean_dodge(false)
+	var prestige_charge: float = game.power_charge
+	game_manager.selected_skin = 0
+	game.power_charge = 0.0
+	game._clean_dodge(false)
+	if prestige_charge <= game.power_charge:
+		push_error("Prestige runners do not recharge their built-in gifts faster")
+		quit(1)
+		return
+	game_manager.selected_skin = original_skin
+	game.player.apply_skin(original_skin)
 	game._show_menu()
 	for skin_index in range(game.player.BODY_TEXTURE_PATHS.size()):
 		game.player.apply_skin(skin_index)
@@ -244,7 +272,7 @@ func _run() -> void:
 			push_error("Runner skin did not retain its body and generated run-cycle legs")
 			quit(1)
 			return
-	game.player.apply_skin(0)
+	game.player.apply_skin(original_skin)
 	for mesh in game.player.visual.find_children("*", "MeshInstance3D", true, false):
 		if (mesh as MeshInstance3D).visible:
 			push_error("Procedural player geometry is still visible")
@@ -288,6 +316,8 @@ func _run() -> void:
 		or game.menu_panel.position.y < 0.0
 		or game.menu_panel.position.x + game.menu_panel.size.x > portrait_viewport_size.x
 		or game.menu_panel.size.x < portrait_viewport_size.x * 0.8
+		or game.loadout_ability_panel.get_class() == "Button"
+		or str(game_manager.selected_ability().name).to_upper() not in game.loadout_ability_label.text
 		or game.start_button.custom_minimum_size.y < 120.0
 		or game.start_button.get_theme_stylebox("normal").corner_radius_top_left < 24
 		or game.shop_panel.position.x < 0.0
@@ -344,6 +374,7 @@ func _run() -> void:
 		or not (portrait_medals[0] is PanelContainer)
 		or (portrait_cards[0] as Control).custom_minimum_size.x < 390.0
 		or (portrait_cards[0].get_node("CardMargin/CardBox/PortraitBubble/RunnerPortrait") as TextureRect) == null
+		or (portrait_cards[0].get_node("CardMargin/CardBox/RunnerAbility") as Label).text.is_empty()
 		or (portrait_cards[0].get_node("CardMargin/CardBox/RunnerAction") as Button).get_theme_font_size("font_size") < 22
 		or game.shop_cards.size.y <= game.shop_scroll.size.y
 		or game.shop_panel.position.y < 0.0
@@ -352,6 +383,51 @@ func _run() -> void:
 		push_error("Portrait shop is not using its large, bubbly, ad-safe presentation")
 		quit(1)
 		return
+	if (
+		not is_instance_valid(game.shop_previous_button)
+		or not is_instance_valid(game.shop_next_button)
+		or game.shop_scroll.get_v_scroll_bar().max_value <= game.shop_scroll.get_v_scroll_bar().page
+		or "PAGE 1 OF 6" not in game.shop_page_label.text
+	):
+		push_error("Runner gallery does not expose navigation to all twelve runners")
+		quit(1)
+		return
+	game.shop_scroll.scroll_vertical = 0
+	var shop_drag_start: Vector2 = game.shop_scroll.get_global_rect().get_center()
+	var shop_touch := InputEventScreenTouch.new()
+	shop_touch.index = 17
+	shop_touch.pressed = true
+	shop_touch.position = shop_drag_start
+	game._input(shop_touch)
+	var shop_drag := InputEventScreenDrag.new()
+	shop_drag.index = 17
+	shop_drag.position = shop_drag_start - Vector2(0.0, 260.0)
+	shop_drag.relative = Vector2(0.0, -260.0)
+	game._input(shop_drag)
+	shop_touch = InputEventScreenTouch.new()
+	shop_touch.index = 17
+	shop_touch.pressed = false
+	shop_touch.position = shop_drag.position
+	game._input(shop_touch)
+	if game.shop_scroll.scroll_vertical <= 0:
+		push_error("Android-style vertical drag did not scroll the runner gallery")
+		quit(1)
+		return
+	game.shop_scroll.scroll_vertical = 0
+	game._scroll_shop_page(1)
+	if game.shop_scroll.scroll_vertical <= 0:
+		push_error("More Runners button did not advance the runner gallery")
+		quit(1)
+		return
+	for page_advance in range(6):
+		game._scroll_shop_page(1)
+	var shop_bar: VScrollBar = game.shop_scroll.get_v_scroll_bar()
+	var shop_max_scroll := int(ceil(shop_bar.max_value - shop_bar.page))
+	if game.shop_scroll.scroll_vertical < shop_max_scroll - 1 or not game.shop_next_button.disabled:
+		push_error("Runner gallery navigation cannot reach its final runners")
+		quit(1)
+		return
+	game.shop_scroll.scroll_vertical = 0
 	root.size = Vector2i(1280, 720)
 	await process_frame
 	await process_frame
@@ -377,6 +453,10 @@ func _run() -> void:
 		quit(1)
 		return
 	game._start_run()
+	if not is_equal_approx(game.power_charge, float(game_manager.selected_ability().start_charge)):
+		push_error("A run did not inherit its starting gift charge from the equipped runner")
+		quit(1)
+		return
 	game._handle_back_request()
 	if game.state != game.GameState.PAUSED:
 		push_error("Native back did not pause a running game")
@@ -583,6 +663,80 @@ func _run() -> void:
 		push_error("Generated feather pickup art is missing")
 		quit(1)
 		return
+	game._spawn_feather(1, -21.0, "jump")
+	var jump_feather: Dictionary = game.feathers[-1]
+	game.player.position.y = 0.0
+	if float(jump_feather.base_height) < 2.4 or game._can_collect_feather(jump_feather):
+		push_error("High skill-route feathers do not require a jump")
+		quit(1)
+		return
+	game.player.position.y = 1.25
+	if not game._can_collect_feather(jump_feather):
+		push_error("Jumping cannot collect a high skill-route feather")
+		quit(1)
+		return
+	game._spawn_feather(1, -24.0, "duck")
+	var duck_feather: Dictionary = game.feathers[-1]
+	game.player.position.y = 0.0
+	game.player.ducking = false
+	if float(duck_feather.base_height) > 0.9 or game._can_collect_feather(duck_feather):
+		push_error("Low skill-route feathers do not require a duck")
+		quit(1)
+		return
+	game.player.ducking = true
+	if not game._can_collect_feather(duck_feather):
+		push_error("Ducking cannot collect a low skill-route feather")
+		quit(1)
+		return
+	game.player.ducking = false
+	game.player.position.y = 0.0
+	game._clear_run_objects()
+	seed(20260825)
+	game.distance = 300.0
+	var found_skill_route := false
+	for pattern_index in range(60):
+		game._spawn_pattern()
+		for feather_item in game.feathers:
+			if str(feather_item.height_mode) in ["jump", "duck"]:
+				found_skill_route = true
+				break
+		if found_skill_route:
+			break
+		game._clear_run_objects()
+	if not found_skill_route:
+		push_error("Obstacle patterns never place feather trails through jump or duck routes")
+		quit(1)
+		return
+	game._clear_run_objects()
+	game._spawn_all_lane_skill_row()
+	var blocked_lanes := {}
+	var row_kind := ""
+	for obstacle_item in game.obstacles:
+		blocked_lanes[int(obstacle_item.lane)] = true
+		if row_kind.is_empty():
+			row_kind = str(obstacle_item.kind)
+		elif str(obstacle_item.kind) != row_kind:
+			push_error("All-lane skill row mixes conflicting obstacle instructions")
+			quit(1)
+			return
+	var expected_route_mode := "jump" if row_kind in ["wall", "cone"] else "duck"
+	game.distance = game.ALL_LANES_SKILL_DISTANCE
+	var first_row_chance: float = game._all_lanes_skill_chance()
+	game.distance = game.ALL_LANES_SKILL_DISTANCE + game.ALL_LANES_SKILL_RAMP_DISTANCE
+	var late_row_chance: float = game._all_lanes_skill_chance()
+	if (
+		game.ALL_LANES_SKILL_DISTANCE < 600.0
+		or game.ALL_LANES_SKILL_CHANCE <= 0.0
+		or late_row_chance <= first_row_chance
+		or blocked_lanes.size() != 3
+		or game.obstacles.size() != 3
+		or game.feathers.size() < 4
+		or str(game.feathers[0].height_mode) != expected_route_mode
+	):
+		push_error("Late-run all-lane rows do not force one readable jump or duck skill")
+		quit(1)
+		return
+	game._clear_run_objects()
 	game._show_shop()
 	await process_frame
 	if game.shop_medal_row.get_child_count() != game.BIOMES.size():

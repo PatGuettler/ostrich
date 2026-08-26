@@ -5,18 +5,18 @@ App name
 Ostrich Dash
 
 Short description (80 characters max)
-Swipe, jump, and duck through six changing biomes in an ostrich runner.
+Swipe, jump, and duck through nine changing worlds in a cute ostrich runner.
 
 Full description
-Ostrich Dash is a colorful third-person, three-lane endless runner. Guide an ostrich down an ever-changing track as the scenery moves through Classic Stadium, Beach Track, Night Games, Desert Circuit, Snow Games, and Jungle Track.
+Ostrich Dash is a colorful third-person, three-lane endless runner. Guide an ostrich down an ever-changing track through Classic Stadium, Beach Track, Night Games, Desert Circuit, Snow Games, Jungle Track, Candy Carnival, Volcano Valley, and Cloud Kingdom.
 
 Swipe left or right to switch lanes, swipe up to jump, and swipe down to duck. Dodge padded hurdles, foam walls, traffic cones, duck-under gates, referee drones, slippery patches, and rival runners.
 
-Collect feathers during each run to unlock four ostrich skins. Build clean-dodge combos, earn biome medals, complete a daily feather challenge, and improve your personal best.
+Collect feathers during each run to unlock twelve colorful ostrich runners. Build clean-dodge combos, earn biome medals, complete a daily feather challenge, climb the global Longest Dash leaderboard, and improve your personal best.
 
-Charge one of four powers as you run: Shield blocks one collision, Magnet pulls nearby feathers toward you, Slow-Mo gives you extra reaction time, and Score Rush builds your combo faster.
+Every ostrich has its own built-in runner gift—there is no separate power to choose. Unlocking more advanced runners gives you longer-lasting gifts, more starting charge, and faster recharging. Gifts can block a crash, pull feathers toward you, slow obstacles, or rescue you from collisions.
 
-On a keyboard, use the arrow keys or A/D to switch lanes, W or Space to jump, S to duck, and E or Q to activate a charged power.
+On a keyboard, use the arrow keys or A/D to switch lanes, W or Space to jump, S to duck, and E or Q to activate your runner's charged gift.
 
 Privacy policy
 https://patguettler.github.io/privacy-policy.html
