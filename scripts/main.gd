@@ -66,20 +66,6 @@ const RUNNER_ART_PATHS := [
 	"res://assets/generated/gameplay/runner_electric_lime.png",
 	"res://assets/generated/gameplay/runner_royal_peacock.png",
 ]
-const RUNNER_GAMEPLAY_ART_PATHS := [
-	"res://assets/generated/gameplay/runner_classic_back.png",
-	"res://assets/generated/gameplay/runner_midnight_back.png",
-	"res://assets/generated/gameplay/runner_golden_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_back.png",
-	"res://assets/generated/gameplay/runner_midnight_back.png",
-	"res://assets/generated/gameplay/runner_classic_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_back.png",
-	"res://assets/generated/gameplay/runner_classic_back.png",
-	"res://assets/generated/gameplay/runner_midnight_back.png",
-	"res://assets/generated/gameplay/runner_bubblegum_back.png",
-	"res://assets/generated/gameplay/runner_classic_back.png",
-	"res://assets/generated/gameplay/runner_midnight_back.png",
-]
 const RIVAL_ART_PATH := "res://assets/generated/gameplay/rival_runner_back.png"
 const OBSTACLE_ATLAS_PATH := "res://assets/generated/gameplay/obstacle_atlas.png"
 const OBSTACLE_ATLAS_PATHS := [
@@ -99,7 +85,6 @@ const OBSTACLE_ATLAS_PATHS := [
 const REWARD_POWER_ATLAS_PATH := "res://assets/generated/gameplay/reward_power_atlas.png"
 const BIOME_PROP_ATLAS_PATH := "res://assets/generated/gameplay/biome_prop_atlas.png"
 const EFFECTS_MEDALS_ATLAS_PATH := "res://assets/generated/gameplay/effects_medals_atlas.png"
-const SURFACE_ATLAS_PATH := "res://assets/generated/gameplay/surface_atlas.png"
 const MENU_LOGO_PATH := "res://assets/generated/ui/ostrich_dash_menu_logo.png"
 const UI_FONT_PATH := "res://assets/fonts/NotoSansDisplay-Regular.ttf"
 const UI_FONT_BOLD_PATH := "res://assets/fonts/NotoSansDisplay-Bold.ttf"
@@ -228,7 +213,6 @@ var goal_detail_label: Label
 var goal_progress: ProgressBar
 var power_button: Button
 var power_bar: ProgressBar
-var touch_controls: Control
 var result_layer: Control
 var result_panel: PanelContainer
 var result_margin: MarginContainer
@@ -249,6 +233,13 @@ var result_actions: GridContainer
 var result_retry_button: Button
 var result_home_button: Button
 var result_leaderboard_button: Button
+var scores_layer: Control
+var scores_panel: PanelContainer
+var scores_title: Label
+var scores_status: Label
+var scores_list: VBoxContainer
+var scores_native_button: Button
+var scores_back_button: Button
 var shop_layer: Control
 var shop_panel: PanelContainer
 var shop_margin: MarginContainer
@@ -279,6 +270,22 @@ var spin_sound: AudioStreamWAV
 var success_sound: AudioStreamWAV
 var audio_enabled := true
 
+var _atlas_cache: Dictionary = {}
+var _surface_material_cache: Dictionary = {}
+var _rival_body_shader: Shader
+var _rival_leg_shader: Shader
+var _rival_body_material: ShaderMaterial
+var _rival_leg_material_left: ShaderMaterial
+var _rival_leg_material_right: ShaderMaterial
+var _rival_shadow_material: StandardMaterial3D
+var _power_shell_material: StandardMaterial3D
+var _power_ring_material: StandardMaterial3D
+var _cached_hud_power_icon_cell := -1
+var _feather_pool: Array[Node3D] = []
+var _obstacle_pool: Array[Node3D] = []
+const FEATHER_POOL_MAX := 24
+const OBSTACLE_POOL_MAX := 16
+
 func _ready() -> void:
 	if "--store-listing" in OS.get_cmdline_user_args():
 		seed(20260823)
@@ -289,13 +296,104 @@ func _ready() -> void:
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR)
 	ad_preview_mode = "--preview-ad-bar" in OS.get_cmdline_user_args()
 	_build_game_viewport()
+	_init_runtime_caches()
 	_build_world()
+	_apply_mobile_render_tier()
 	_build_ui()
 	_build_audio()
 	_show_menu()
+	_sync_viewport_render_mode()
 	refresh_ad_layout()
 	get_viewport().size_changed.connect(refresh_ad_layout)
 	call_deferred("_sync_ad_bar")
+
+func _init_runtime_caches() -> void:
+	var rival_texture: Texture2D = load(RIVAL_ART_PATH)
+	_rival_body_shader = Shader.new()
+	_rival_body_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_prepass_alpha;
+uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+void fragment() {
+	vec4 art = texture(runner_texture, UV);
+	float upper_body = 1.0 - step(0.615, UV.y);
+	ALBEDO = art.rgb;
+	ALPHA = art.a * upper_body;
+}
+"""
+	_rival_leg_shader = Shader.new()
+	_rival_leg_shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_prepass_alpha;
+uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform float keep_left = 1.0;
+void fragment() {
+	vec2 sample_uv = UV;
+	float leg_mask = step(0.615, UV.y);
+	float side_mask = step(0.5, UV.x);
+	if (keep_left > 0.5) {
+		side_mask = 1.0 - side_mask;
+	}
+	vec4 art = texture(runner_texture, sample_uv);
+	ALBEDO = art.rgb;
+	ALPHA = art.a * leg_mask * side_mask;
+}
+"""
+	_rival_body_material = ShaderMaterial.new()
+	_rival_body_material.shader = _rival_body_shader
+	_rival_body_material.set_shader_parameter("runner_texture", rival_texture)
+	_rival_leg_material_left = ShaderMaterial.new()
+	_rival_leg_material_left.shader = _rival_leg_shader
+	_rival_leg_material_left.set_shader_parameter("runner_texture", rival_texture)
+	_rival_leg_material_left.set_shader_parameter("keep_left", 1.0)
+	_rival_leg_material_right = ShaderMaterial.new()
+	_rival_leg_material_right.shader = _rival_leg_shader
+	_rival_leg_material_right.set_shader_parameter("runner_texture", rival_texture)
+	_rival_leg_material_right.set_shader_parameter("keep_left", 0.0)
+	_rival_shadow_material = StandardMaterial3D.new()
+	_rival_shadow_material.albedo_color = Color(0.015, 0.025, 0.05, 0.25)
+	_rival_shadow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_rival_shadow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_rival_shadow_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_power_shell_material = _make_power_aura_material()
+	_power_ring_material = _make_power_aura_material()
+
+func _make_power_aura_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.emission_enabled = true
+	material.emission_energy_multiplier = 1.5
+	material.no_depth_test = true
+	material.render_priority = 4
+	return material
+
+func _configure_power_aura(material: StandardMaterial3D, color: Color, alpha: float) -> void:
+	material.albedo_color = Color(color.r, color.g, color.b, alpha)
+	material.emission = color
+
+func _apply_mobile_render_tier() -> void:
+	if not mobile_mode or not is_instance_valid(world_environment):
+		return
+	var environment := world_environment.environment
+	environment.glow_enabled = false
+	environment.fog_density = minf(environment.fog_density, 0.0025)
+	if is_instance_valid(sun):
+		sun.shadow_enabled = false
+	if is_instance_valid(fill_light):
+		fill_light.light_energy = 0.45
+	if is_instance_valid(game_viewport):
+		game_viewport.msaa_3d = Viewport.MSAA_DISABLED
+
+func _sync_viewport_render_mode() -> void:
+	if not is_instance_valid(game_viewport):
+		return
+	match state:
+		GameState.RUNNING, GameState.HIT, GameState.MENU:
+			game_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		_:
+			game_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 
 func _process(delta: float) -> void:
 	var ad_reserve := _ad_bottom_reserve()
@@ -320,7 +418,8 @@ func _process(delta: float) -> void:
 		var pulse := 1.0 + sin(elapsed * 3.2) * ready_pulse
 		power_button.scale = Vector2(pulse, pulse)
 		power_button.rotation = sin(elapsed * 2.1) * 0.018
-	_update_particles(delta)
+	if puff_particles.size() > 0:
+		_update_particles(delta)
 
 func _input(event: InputEvent) -> void:
 	# Android GUI controls receive events before _unhandled_input(), so gestures
@@ -382,6 +481,9 @@ func _notification(what: int) -> void:
 		_handle_back_request()
 
 func _handle_back_request() -> void:
+	if is_instance_valid(scores_layer) and scores_layer.visible:
+		_hide_global_scores()
+		return
 	match state:
 		GameState.RUNNING:
 			_pause_game()
@@ -522,12 +624,12 @@ func _start_run() -> void:
 	slip_timer = 0.0
 	player.reset_player()
 	state = GameState.RUNNING
+	_sync_viewport_render_mode()
 	menu_layer.visible = false
 	result_layer.visible = false
 	shop_layer.visible = false
 	pause_layer.visible = false
 	hud.visible = true
-	touch_controls.visible = false
 	_apply_biome(0, true)
 	_update_hud()
 	if mobile_mode:
@@ -589,6 +691,7 @@ func _build_power_effects() -> void:
 	power_effect_shell.position = Vector3(0.0, 2.55, 0.2)
 	power_effect_shell.scale = Vector3(3.55, 5.2, 2.15)
 	power_effect_shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	power_effect_shell.material_override = _power_shell_material
 	power_effect_root.add_child(power_effect_shell)
 
 	for ring_index in range(2):
@@ -604,6 +707,7 @@ func _build_power_effects() -> void:
 		ring.rotation_degrees.x = 90.0
 		ring.scale = Vector3(3.45 - ring_index * 0.38, 1.0, 4.75 - ring_index * 0.42)
 		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ring.material_override = _power_ring_material
 		power_effect_root.add_child(ring)
 		power_effect_rings.append(ring)
 
@@ -618,28 +722,16 @@ func _build_power_effects() -> void:
 		icon.render_priority = 6
 		power_effect_icons.append(icon)
 
-func _power_aura_material(color: Color, alpha: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(color.r, color.g, color.b, alpha)
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = 1.5
-	material.no_depth_test = true
-	material.render_priority = 4
-	return material
-
 func _start_power_effect() -> void:
 	var ability := GameManager.selected_ability()
 	var ability_kind := GameManager.selected_ability_kind()
 	var effect_color := Color(str(ability.get("aura_color", "#4de9ff")))
 	var icon_texture := _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.get("icon_cell", 1)))
 	var protective := ability_kind in [GameManager.ABILITY_SHIELD, GameManager.ABILITY_RESCUE, GameManager.ABILITY_MIRACLE]
-	power_effect_shell.material_override = _power_aura_material(effect_color, 0.11 if protective else 0.065)
+	_configure_power_aura(_power_shell_material, effect_color, 0.11 if protective else 0.065)
+	_configure_power_aura(_power_ring_material, effect_color, 0.82)
 	for ring in power_effect_rings:
-		ring.material_override = _power_aura_material(effect_color, 0.82)
+		ring.material_override = _power_ring_material
 	for icon in power_effect_icons:
 		icon.texture = icon_texture
 		icon.modulate = Color.WHITE
@@ -779,10 +871,10 @@ func _next_spawn_gap() -> float:
 	return randf_range(SPAWN_GAP_MIN, SPAWN_GAP_MAX) - difficulty_reduction
 
 func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
-	var node := Node3D.new()
+	var node := _acquire_obstacle_node()
 	node.name = "Cute%sObstacle" % kind.capitalize()
 	node.position = Vector3(LANES[lane], 0.0, z)
-	obstacle_root.add_child(node)
+	node.visible = true
 	var rival_parts: Dictionary = {}
 	if kind == "rival":
 		rival_parts = _build_rival_runner(node)
@@ -793,8 +885,6 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 		var atlas_path: String = OBSTACLE_ATLAS_PATHS[clampi(current_biome, 0, OBSTACLE_ATLAS_PATHS.size() - 1)]
 		var art := _sprite_3d(node, _atlas_texture(atlas_path, 3, 2, cell), Vector3(0.0, sprite_height, 0.0), pixel_size, "Generated%sArt" % kind.capitalize())
 		if kind == "bar":
-			# Keep the feet planted while lifting the crossbar well above the other
-			# hazards. A little extra width reinforces that this spans the lane.
 			art.scale = Vector3(1.08, 1.28, 1.0)
 		elif kind == "slip":
 			art.scale.y = 0.46
@@ -802,26 +892,48 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 	item.merge(rival_parts)
 	obstacles.append(item)
 
+func _acquire_obstacle_node() -> Node3D:
+	while not _obstacle_pool.is_empty():
+		var pooled: Node3D = _obstacle_pool.pop_back()
+		if is_instance_valid(pooled):
+			if pooled.get_parent() != obstacle_root:
+				obstacle_root.add_child(pooled)
+			_reset_obstacle_node(pooled)
+			return pooled
+	var node := Node3D.new()
+	obstacle_root.add_child(node)
+	return node
+
+func _reset_obstacle_node(node: Node3D) -> void:
+	for child in node.get_children():
+		node.remove_child(child)
+		child.free()
+
+func _release_obstacle_node(node: Node3D) -> void:
+	if not is_instance_valid(node):
+		return
+	node.visible = false
+	if _obstacle_pool.size() < OBSTACLE_POOL_MAX:
+		_obstacle_pool.append(node)
+	else:
+		node.queue_free()
+
 func _build_rival_runner(parent: Node3D) -> Dictionary:
+	_reset_obstacle_node(parent)
 	var texture: Texture2D = load(RIVAL_ART_PATH)
 	var visual := Node3D.new()
 	visual.name = "RivalRunningVisual"
 	parent.add_child(visual)
 	var body := _rival_sprite(visual, texture, Vector3(0.0, 2.35, 0.0), "GeneratedRivalBody", 4)
-	body.material_override = _rival_body_material(texture)
+	body.material_override = _rival_body_material
 	var left_pivot := _make_rival_stride_layer(visual, texture, "RivalLeftStride", true, Vector3(-0.25, 1.99, -0.02))
 	var right_pivot := _make_rival_stride_layer(visual, texture, "RivalRightStride", false, Vector3(0.23, 1.99, -0.02))
 	var shadow_mesh := QuadMesh.new()
 	shadow_mesh.size = Vector2(1.9, 0.9)
-	var shadow_material := StandardMaterial3D.new()
-	shadow_material.albedo_color = Color(0.015, 0.025, 0.05, 0.25)
-	shadow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shadow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	shadow_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var shadow := MeshInstance3D.new()
 	shadow.name = "RivalGroundShadow"
 	shadow.mesh = shadow_mesh
-	shadow.material_override = shadow_material
+	shadow.material_override = _rival_shadow_material
 	shadow.position = Vector3(0.0, 0.055, 0.12)
 	shadow.rotation_degrees.x = -90.0
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -857,53 +969,37 @@ func _make_rival_stride_layer(visual: Node3D, texture: Texture2D, node_name: Str
 	pivot.position = hip_position
 	visual.add_child(pivot)
 	var leg := _rival_sprite(pivot, texture, Vector3(-hip_position.x, 2.35 - hip_position.y, -0.01), "LegArt", 2)
-	leg.material_override = _rival_leg_material(texture, keep_left)
+	leg.material_override = _rival_leg_material_left if keep_left else _rival_leg_material_right
 	return pivot
 
-func _rival_body_material(texture: Texture2D) -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled, depth_prepass_alpha;
-uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-void fragment() {
-	vec4 art = texture(runner_texture, UV);
-	float upper_body = 1.0 - step(0.615, UV.y);
-	ALBEDO = art.rgb;
-	ALPHA = art.a * upper_body;
-}
-"""
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("runner_texture", texture)
-	return material
+func _spawn_feather(lane: int, z: float, height_mode := "normal") -> void:
+	var base_height: float = {"jump": 2.55, "duck": 0.72}.get(height_mode, 1.55)
+	var node := _acquire_feather_node()
+	node.name = "%sGoldenFeatherPickup" % str(height_mode).capitalize()
+	node.position = Vector3(LANES[lane], base_height, z)
+	node.visible = true
+	feathers.append({"node": node, "lane": lane, "phase": randf() * TAU, "base_height": base_height, "height_mode": height_mode})
 
-func _rival_leg_material(texture: Texture2D, keep_left: bool) -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode unshaded, cull_disabled, depth_prepass_alpha;
-uniform sampler2D runner_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-uniform float keep_left = 1.0;
-void fragment() {
-	vec2 sample_uv = UV;
-	if (keep_left < 0.5) {
-		sample_uv.x = 1.0 - UV.x;
-	}
-	vec4 art = texture(runner_texture, sample_uv);
-	float below_hip = step(0.55, UV.y);
-	float left_half = 1.0 - step(0.505, UV.x);
-	float right_half = step(0.495, UV.x);
-	float selected_half = mix(right_half, left_half, keep_left);
-	ALBEDO = art.rgb;
-	ALPHA = art.a * below_hip * selected_half;
-}
-"""
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("runner_texture", texture)
-	material.set_shader_parameter("keep_left", 1.0 if keep_left else 0.0)
-	return material
+func _acquire_feather_node() -> Node3D:
+	while not _feather_pool.is_empty():
+		var pooled: Node3D = _feather_pool.pop_back()
+		if is_instance_valid(pooled):
+			if pooled.get_parent() != obstacle_root:
+				obstacle_root.add_child(pooled)
+			return pooled
+	var node := Node3D.new()
+	obstacle_root.add_child(node)
+	_sprite_3d(node, _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, 0), Vector3.ZERO, 0.00235, "GeneratedFeatherArt")
+	return node
+
+func _release_feather_node(node: Node3D) -> void:
+	if not is_instance_valid(node):
+		return
+	node.visible = false
+	if _feather_pool.size() < FEATHER_POOL_MAX:
+		_feather_pool.append(node)
+	else:
+		node.queue_free()
 
 func _animate_rival_runner(item: Dictionary, move_speed: float) -> void:
 	var visual: Node3D = item.rival_visual
@@ -934,20 +1030,12 @@ func _animate_rival_stride(pivot: Node3D, leg: Sprite3D, drive: float, is_left: 
 	pivot.position.z = -0.02 + drive * 0.22
 	leg.render_priority = 3 if drive > 0.0 else 2
 
-func _spawn_feather(lane: int, z: float, height_mode := "normal") -> void:
-	var base_height: float = {"jump": 2.55, "duck": 0.72}.get(height_mode, 1.55)
-	var node := Node3D.new()
-	node.name = "%sGoldenFeatherPickup" % str(height_mode).capitalize()
-	node.position = Vector3(LANES[lane], base_height, z)
-	obstacle_root.add_child(node)
-	_sprite_3d(node, _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, 0), Vector3.ZERO, 0.00235, "GeneratedFeatherArt")
-	feathers.append({"node": node, "lane": lane, "phase": randf() * TAU, "base_height": base_height, "height_mode": height_mode})
-
 func _move_objects(delta: float, move_speed: float) -> void:
-	for item in obstacles.duplicate():
+	for index in range(obstacles.size() - 1, -1, -1):
+		var item: Dictionary = obstacles[index]
 		var node: Node3D = item.node
 		if not is_instance_valid(node):
-			obstacles.erase(item)
+			obstacles.remove_at(index)
 			continue
 		var approach_speed := move_speed * (0.84 if item.kind == "rival" else 1.0)
 		node.position.z += approach_speed * delta
@@ -967,12 +1055,13 @@ func _move_objects(delta: float, move_speed: float) -> void:
 			elif absf(node.position.x - player.position.x) < 3.7:
 				_clean_dodge(false)
 		if node.position.z > 14.0:
-			obstacles.erase(item)
-			node.queue_free()
-	for item in feathers.duplicate():
+			obstacles.remove_at(index)
+			_release_obstacle_node(node)
+	for index in range(feathers.size() - 1, -1, -1):
+		var item: Dictionary = feathers[index]
 		var node: Node3D = item.node
 		if not is_instance_valid(node):
-			feathers.erase(item)
+			feathers.remove_at(index)
 			continue
 		node.position.z += move_speed * delta
 		node.rotation.y += delta * 4.5
@@ -980,8 +1069,8 @@ func _move_objects(delta: float, move_speed: float) -> void:
 		if node.position.z > -1.0 and node.position.z < 1.8 and absf(node.position.x - player.position.x) < 0.95 and _can_collect_feather(item):
 			_collect_feather(item)
 		elif node.position.z > 10.0:
-			feathers.erase(item)
-			node.queue_free()
+			feathers.remove_at(index)
+			_release_feather_node(node)
 
 func _can_collect_feather(item: Dictionary) -> bool:
 	if power_timer > 0.0 and GameManager.selected_ability_kind() in [GameManager.ABILITY_MAGNET, GameManager.ABILITY_MIRACLE]:
@@ -1025,7 +1114,7 @@ func _collect_feather(item: Dictionary) -> void:
 	power_charge = minf(100.0, power_charge + 5.0 * float(GameManager.selected_ability().charge_rate))
 	_play_sound(pickup_sound, -8.0)
 	feathers.erase(item)
-	node.queue_free()
+	_release_feather_node(node)
 
 func _trigger_slip() -> void:
 	controls_reversed = true
@@ -1064,7 +1153,6 @@ func _trigger_hit(obstacle: Node3D, obstacle_kind := "bar") -> void:
 	_spawn_puff(player.global_position + Vector3(0, puff_height, 0), Color("#fff0cf"), 24)
 	_play_sound(_crash_sound_for(last_crash), 3.0 if last_crash == "bar_flip" else (2.0 if last_crash == "trip" else 0.0))
 	hud.visible = false
-	touch_controls.visible = false
 
 func _update_hit(delta: float) -> void:
 	_move_track(delta, speed * maxf(0.0, 1.0 - player.spin_time / 1.2))
@@ -1082,6 +1170,7 @@ func _on_crash_finished() -> void:
 
 func _show_results() -> void:
 	state = GameState.RESULTS
+	_sync_viewport_render_mode()
 	power_timer = 0.0
 	shield_active = false
 	_stop_power_effect()
@@ -1116,10 +1205,18 @@ func _show_results() -> void:
 	_play_sound(success_sound, -4.0)
 
 func _clear_run_objects() -> void:
-	for child in obstacle_root.get_children():
-		child.queue_free()
-	for child in particle_root.get_children():
-		child.queue_free()
+	for item in obstacles:
+		var node: Node3D = item.get("node")
+		if is_instance_valid(node):
+			_release_obstacle_node(node)
+	for item in feathers:
+		var node: Node3D = item.get("node")
+		if is_instance_valid(node):
+			_release_feather_node(node)
+	for item in puff_particles:
+		var node: Node3D = item.get("node")
+		if is_instance_valid(node):
+			node.queue_free()
 	obstacles.clear()
 	feathers.clear()
 	puff_particles.clear()
@@ -1465,6 +1562,14 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_position_center_panel(result_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1320.0, content_size.y - 96.0)))
 		_position_center_panel(shop_panel, Vector2(minf(1120.0, content_size.x - 64.0), minf(1640.0, content_size.y - 96.0)))
 		_position_center_panel(pause_panel, Vector2(minf(440.0, content_size.x - 32.0), 340.0))
+		_position_center_panel(scores_panel, Vector2(minf(1080.0, content_size.x - 64.0), minf(1320.0, content_size.y - 96.0)))
+		if is_instance_valid(scores_title):
+			_set_font_size(scores_title, 40)
+			_set_font_size(scores_status, 22)
+			_set_font_size(scores_native_button, 22)
+			_set_font_size(scores_back_button, 26)
+			scores_native_button.custom_minimum_size.y = 72.0
+			scores_back_button.custom_minimum_size.y = 84.0
 		hud_top_panel.offset_left = 18.0
 		hud_top_panel.offset_top = 16.0
 		hud_top_panel.offset_right = -18.0
@@ -1525,6 +1630,14 @@ func _apply_orientation_layout(content_size: Vector2) -> void:
 		_position_center_panel(result_panel, Vector2(minf(1040.0, content_size.x - 36.0), minf(600.0, content_size.y - 28.0)))
 		_position_center_panel(shop_panel, Vector2(minf(980.0, content_size.x - 32.0), minf(620.0, content_size.y - 24.0)))
 		_position_center_panel(pause_panel, Vector2(420.0, 320.0))
+		_position_center_panel(scores_panel, Vector2(minf(980.0, content_size.x - 36.0), minf(620.0, content_size.y - 28.0)))
+		if is_instance_valid(scores_title):
+			_set_font_size(scores_title, 28)
+			_set_font_size(scores_status, 15)
+			_set_font_size(scores_native_button, 13)
+			_set_font_size(scores_back_button, 16)
+			scores_native_button.custom_minimum_size.y = 46.0
+			scores_back_button.custom_minimum_size.y = 50.0
 		hud_top_panel.offset_left = 26.0
 		hud_top_panel.offset_top = 20.0
 		hud_top_panel.offset_right = -26.0
@@ -1818,10 +1931,11 @@ func _spawn_puff(origin: Vector3, color: Color, count: int) -> void:
 		puff_particles.append({"node": node, "velocity": velocity, "life": randf_range(0.7, 1.35)})
 
 func _update_particles(delta: float) -> void:
-	for item in puff_particles.duplicate():
+	for index in range(puff_particles.size() - 1, -1, -1):
+		var item: Dictionary = puff_particles[index]
 		var node: Node3D = item.node
 		if not is_instance_valid(node):
-			puff_particles.erase(item)
+			puff_particles.remove_at(index)
 			continue
 		item.life -= delta
 		item.velocity.y -= 9.0 * delta
@@ -1829,7 +1943,7 @@ func _update_particles(delta: float) -> void:
 		node.rotation.z += delta * 8.0
 		node.scale *= 0.985
 		if item.life <= 0.0:
-			puff_particles.erase(item)
+			puff_particles.remove_at(index)
 			node.queue_free()
 
 func _build_audio() -> void:
@@ -2030,6 +2144,9 @@ func _play_sound(stream: AudioStream, volume_db: float) -> void:
 	sfx_player.play()
 
 func _atlas_texture(path: String, columns: int, rows: int, index: int) -> AtlasTexture:
+	var cache_key := "%s:%d:%d:%d" % [path, columns, rows, index]
+	if _atlas_cache.has(cache_key):
+		return _atlas_cache[cache_key]
 	var source: Texture2D = load(path)
 	var cell_width := float(source.get_width()) / float(columns)
 	var cell_height := float(source.get_height()) / float(rows)
@@ -2041,6 +2158,7 @@ func _atlas_texture(path: String, columns: int, rows: int, index: int) -> AtlasT
 		cell_width,
 		cell_height
 	)
+	_atlas_cache[cache_key] = atlas
 	return atlas
 
 func _sprite_3d(parent: Node3D, texture: Texture2D, pos: Vector3, pixel_size: float, node_name: String) -> Sprite3D:
@@ -2059,15 +2177,16 @@ func _sprite_3d(parent: Node3D, texture: Texture2D, pos: Vector3, pixel_size: fl
 	return sprite
 
 func _surface_material(index: int, tint: Color, roughness: float) -> StandardMaterial3D:
+	var cache_key := "%d:%s:%s" % [index, tint, roughness]
+	if _surface_material_cache.has(cache_key):
+		return _surface_material_cache[cache_key]
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = load(SURFACE_PATHS[clampi(index, 0, SURFACE_PATHS.size() - 1)])
 	mat.albedo_color = tint
 	mat.roughness = roughness
-	# Repeat the higher-density swatch across each 24 m track tile instead of
-	# enlarging one image over the entire tile. This keeps rubber crumbs, sand
-	# grains, ice crystals, and soil detail at a believable gameplay scale.
 	mat.uv1_scale = Vector3(4.0, 4.0, 4.0)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_surface_material_cache[cache_key] = mat
 	return mat
 
 func _material(color: Color, roughness := 0.7) -> StandardMaterial3D:
@@ -2089,7 +2208,9 @@ func _mesh(parent: Node3D, primitive: PrimitiveMesh, pos: Vector3, scale_value: 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var shape := BoxMesh.new()
 	shape.size = size
-	return _mesh(parent, shape, pos, Vector3.ONE, color)
+	var node := _mesh(parent, shape, pos, Vector3.ONE, color)
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
 
 func _sphere(parent: Node3D, pos: Vector3, scale_value: Vector3, color: Color) -> MeshInstance3D:
 	var shape := SphereMesh.new()
@@ -2376,13 +2497,6 @@ func _build_ui() -> void:
 	power_bar.add_theme_stylebox_override("fill", _panel_style(Color("#ffe066"), Color("#fff6be"), 1, 9))
 	power_button.add_child(power_bar)
 
-	touch_controls = Control.new()
-	touch_controls.name = "InputGestureLayer"
-	touch_controls.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	touch_controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	touch_controls.visible = false
-	ui_content_root.add_child(touch_controls)
-
 	result_layer = _modal_layer(ui_content_root)
 	result_panel = _center_panel(result_layer, Vector2(1040, 680))
 	var result_panel_style := _panel_style(Color("#fff3d8"), Color("#35d5c5"), 5, 46)
@@ -2587,6 +2701,39 @@ func _build_ui() -> void:
 	quit.pressed.connect(_quit_run)
 	pause_box.add_child(quit)
 
+	scores_layer = _modal_layer(ui_content_root)
+	scores_layer.visible = false
+	scores_panel = _center_panel(scores_layer, Vector2(980, 720))
+	scores_panel.add_theme_stylebox_override("panel", _panel_style(Color("#fff3d8"), Color("#35d5c5"), 4, 28))
+	var scores_box := _modal_box(scores_panel)
+	scores_title = _label("LONGEST DASH", 34, Color("#17385d"))
+	scores_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_set_bold(scores_title)
+	scores_box.add_child(scores_title)
+	scores_status = _label("ALL-TIME PUBLIC RANKS", 16, Color("#385f8f"))
+	scores_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scores_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	scores_box.add_child(scores_status)
+	var scores_scroll := ScrollContainer.new()
+	scores_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scores_scroll.custom_minimum_size.y = 320.0
+	scores_box.add_child(scores_scroll)
+	scores_list = VBoxContainer.new()
+	scores_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scores_list.add_theme_constant_override("separation", 8)
+	scores_scroll.add_child(scores_list)
+	var scores_actions := HBoxContainer.new()
+	scores_actions.add_theme_constant_override("separation", 10)
+	scores_box.add_child(scores_actions)
+	scores_native_button = _button("OPEN IN PLAY GAMES", Color("#16586b"), Color("#62e9db"), 14)
+	scores_native_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scores_native_button.pressed.connect(_open_native_global_scores)
+	scores_actions.add_child(scores_native_button)
+	scores_back_button = _button("CLOSE", Color("#20aeb0"), Color("#7af0df"), 16)
+	scores_back_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scores_back_button.pressed.connect(_hide_global_scores)
+	scores_actions.add_child(scores_back_button)
+
 	toast_label = _label("", 19, Color.WHITE)
 	toast_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	toast_label.position = Vector2(-240, 150)
@@ -2622,6 +2769,7 @@ func _build_ui() -> void:
 func _show_menu() -> void:
 	_reset_shop_touch_gesture()
 	state = GameState.MENU
+	_sync_viewport_render_mode()
 	power_timer = 0.0
 	shield_active = false
 	_stop_power_effect()
@@ -2629,8 +2777,9 @@ func _show_menu() -> void:
 	result_layer.visible = false
 	shop_layer.visible = false
 	pause_layer.visible = false
+	if is_instance_valid(scores_layer):
+		scores_layer.visible = false
 	hud.visible = false
-	touch_controls.visible = false
 	player.active = false
 	player.stunned = false
 	player.visible = false
@@ -2657,6 +2806,7 @@ func _open_privacy_policy() -> void:
 
 func _show_shop() -> void:
 	state = GameState.SHOP
+	_sync_viewport_render_mode()
 	_reset_shop_touch_gesture()
 	menu_layer.visible = false
 	shop_layer.visible = true
@@ -2698,18 +2848,90 @@ func _refresh_shop_navigation() -> void:
 
 func _show_global_scores() -> void:
 	_ensure_leaderboard_feedback_connected()
-	# Re-post personal best whenever the board is opened so earlier missed
-	# submits (unsigned-in runs) still land after sign-in works.
 	LeaderboardService.submit_longest_dash(int(GameManager.best_distance))
-	match LeaderboardService.show_global_scores():
+	_open_scores_panel("Loading global ranks...")
+	match LeaderboardService.begin_global_scores():
 		"":
-			pass
+			_refresh_scores_board()
 		"signing_in":
+			scores_status.text = "SIGNING IN TO GOOGLE PLAY GAMES..."
 			_show_toast("SIGN IN TO GOOGLE PLAY GAMES TO VIEW GLOBAL SCORES")
 		"unavailable":
+			_fill_local_scores_fallback("GLOBAL SCORES NEED THE PLAY GAMES ANDROID BUILD")
 			_show_toast("GLOBAL SCORES NEED THE PLAY GAMES ANDROID BUILD")
 		_:
+			_fill_local_scores_fallback("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
 			_show_toast("GLOBAL SCORES WILL OPEN AFTER PLAY GAMES SETUP")
+
+func _open_scores_panel(status_text: String) -> void:
+	if not is_instance_valid(scores_layer):
+		return
+	scores_layer.visible = true
+	scores_status.text = status_text
+	for child in scores_list.get_children():
+		child.queue_free()
+
+func _hide_global_scores() -> void:
+	if is_instance_valid(scores_layer):
+		scores_layer.visible = false
+
+func _refresh_scores_board() -> void:
+	scores_status.text = "LOADING ALL-TIME PUBLIC RANKS..."
+	for child in scores_list.get_children():
+		child.queue_free()
+	LeaderboardService.fetch_scores()
+
+func _fill_local_scores_fallback(status_text: String) -> void:
+	scores_status.text = status_text
+	for child in scores_list.get_children():
+		child.queue_free()
+	var local_rows: Array = []
+	if GameManager.best_distance > 0.0:
+		local_rows.append({
+			"rank": 1,
+			"display_rank": "1",
+			"name": "YOU (LOCAL BEST)",
+			"score": int(GameManager.best_distance),
+			"display_score": "%d m" % int(GameManager.best_distance),
+		})
+	_populate_scores_list(local_rows)
+
+func _populate_scores_list(rows: Array) -> void:
+	for child in scores_list.get_children():
+		child.queue_free()
+	if rows.is_empty():
+		var empty := _label("NO PUBLIC SCORES YET — TURN ON GAME ACTIVITY IN PLAY GAMES PRIVACY", 15, Color("#385f8f"))
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		scores_list.add_child(empty)
+		return
+	for row in rows:
+		var row_panel := PanelContainer.new()
+		row_panel.add_theme_stylebox_override("panel", _panel_style(Color("#fffaf0"), Color("#35d5c5"), 2, 16))
+		scores_list.add_child(row_panel)
+		var row_box := HBoxContainer.new()
+		row_box.add_theme_constant_override("separation", 12)
+		row_panel.add_child(row_box)
+		var rank_label := _label(str(row.get("display_rank", row.get("rank", ""))), 18, Color("#55378a"))
+		rank_label.custom_minimum_size.x = 56.0
+		_set_bold(rank_label)
+		row_box.add_child(rank_label)
+		var name_label := _label(str(row.get("name", "PLAYER")), 17, Color("#17385d"))
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.clip_text = true
+		row_box.add_child(name_label)
+		var score_text := str(row.get("display_score", ""))
+		if score_text.is_empty():
+			score_text = "%d m" % int(row.get("score", 0))
+		var score_label := _label(score_text, 18, Color("#e45875"))
+		_set_bold(score_label)
+		row_box.add_child(score_label)
+
+func _open_native_global_scores() -> void:
+	if not LeaderboardService.available or not LeaderboardService.authenticated:
+		_show_toast("SIGN IN TO OPEN PLAY GAMES")
+		return
+	LeaderboardService.show_native_leaderboard()
 
 func _ensure_leaderboard_feedback_connected() -> void:
 	if not LeaderboardService.sign_in_failed.is_connected(_on_play_games_sign_in_failed):
@@ -2718,9 +2940,32 @@ func _ensure_leaderboard_feedback_connected() -> void:
 		LeaderboardService.score_queued.connect(_on_leaderboard_score_queued)
 	if not LeaderboardService.score_submit_finished.is_connected(_on_leaderboard_score_submit_finished):
 		LeaderboardService.score_submit_finished.connect(_on_leaderboard_score_submit_finished)
+	if not LeaderboardService.ready_to_show.is_connected(_on_leaderboard_ready_to_show):
+		LeaderboardService.ready_to_show.connect(_on_leaderboard_ready_to_show)
+	if not LeaderboardService.scores_loaded.is_connected(_on_leaderboard_scores_loaded):
+		LeaderboardService.scores_loaded.connect(_on_leaderboard_scores_loaded)
+	if not LeaderboardService.scores_load_failed.is_connected(_on_leaderboard_scores_load_failed):
+		LeaderboardService.scores_load_failed.connect(_on_leaderboard_scores_load_failed)
 
 func _on_play_games_sign_in_failed() -> void:
+	scores_status.text = "PLAY GAMES SIGN-IN FAILED"
 	_show_toast("PLAY GAMES SIGN-IN FAILED — CHECK SHA-1 AND TESTERS")
+
+func _on_leaderboard_ready_to_show() -> void:
+	if is_instance_valid(scores_layer) and scores_layer.visible:
+		_refresh_scores_board()
+
+func _on_leaderboard_scores_loaded(rows: Array) -> void:
+	scores_status.text = "LONGEST DASH  •  ALL TIME  •  PUBLIC"
+	_populate_scores_list(rows)
+
+func _on_leaderboard_scores_load_failed(message: String) -> void:
+	match message:
+		"signed_out":
+			scores_status.text = "SIGN IN TO LOAD GLOBAL RANKS"
+		_:
+			scores_status.text = "COULD NOT LOAD GLOBAL RANKS"
+	_fill_local_scores_fallback(scores_status.text)
 
 func _on_leaderboard_score_queued(meters: int) -> void:
 	_show_toast("SIGNED OUT — TAP GLOBAL SCORES TO POST %d m" % meters)
@@ -2729,7 +2974,7 @@ func _on_leaderboard_score_submit_finished(success: bool, meters: int) -> void:
 	if success:
 		_show_toast("POSTED %d m TO GLOBAL SCORES" % meters)
 	else:
-		_show_toast("COULD NOT POST %d m — CHECK PLAY GAMES TESTERS" % meters)
+		_show_toast("COULD NOT POST %d m — CHECK PLAY GAMES PRIVACY / TESTERS" % meters)
 
 func _rebuild_shop_cards() -> void:
 	for child in shop_cards.get_children():
@@ -2892,17 +3137,17 @@ func _select_skin(index: int) -> void:
 
 func _pause_game() -> void:
 	state = GameState.PAUSED
+	_sync_viewport_render_mode()
 	pause_layer.visible = true
 	hud.visible = false
-	touch_controls.visible = false
 
 func _resume_game() -> void:
 	if state != GameState.PAUSED:
 		return
 	state = GameState.RUNNING
+	_sync_viewport_render_mode()
 	pause_layer.visible = false
 	hud.visible = true
-	touch_controls.visible = false
 
 func _quit_run() -> void:
 	state = GameState.RESULTS
@@ -2926,7 +3171,10 @@ func _update_hud() -> void:
 	power_bar.value = power_charge
 	var ability := GameManager.selected_ability()
 	var ability_name := str(ability.name)
-	power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, int(ability.get("icon_cell", 1)))
+	var icon_cell := int(ability.get("icon_cell", 1))
+	if icon_cell != _cached_hud_power_icon_cell:
+		_cached_hud_power_icon_cell = icon_cell
+		power_button.icon = _atlas_texture(REWARD_POWER_ATLAS_PATH, 3, 2, icon_cell)
 	if power_charge >= 100.0:
 		power_button.text = "%s READY!\n%s" % [ability_name.to_upper(), "TAP TO USE" if mobile_mode else "PRESS E"]
 	else:

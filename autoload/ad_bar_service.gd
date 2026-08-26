@@ -30,6 +30,8 @@ var _banner_requested := false
 var _loaded_placement := ""
 var _relayout_generation := 0
 var _keyboard_open := false
+var _placement_check_timer := 0.0
+const PLACEMENT_CHECK_INTERVAL := 0.25
 
 
 func _ready() -> void:
@@ -47,7 +49,7 @@ func _exit_tree() -> void:
 	detach()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _should_show_ads():
 		return
 	var keyboard_open := _keyboard_is_open()
@@ -61,6 +63,10 @@ func _process(_delta: float) -> void:
 		return
 	if keyboard_open:
 		return
+	_placement_check_timer += delta
+	if _placement_check_timer < PLACEMENT_CHECK_INTERVAL:
+		return
+	_placement_check_timer = 0.0
 	if _placement_signature() != _loaded_placement:
 		_schedule_relayout()
 

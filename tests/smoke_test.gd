@@ -47,17 +47,22 @@ func _run() -> void:
 		not is_instance_valid(leaderboard_service)
 		or leaderboard_service.available
 		or not leaderboard_service.leaderboard_id.is_empty()
-		or leaderboard_service.show_global_scores() != "setup"
+		or leaderboard_service.begin_global_scores() != "setup"
 	):
 		push_error("The optional Play Games leaderboard service is missing or unsafe without release IDs")
 		quit(1)
 		return
 	game._show_global_scores()
 	await process_frame
+	if not is_instance_valid(game.scores_layer) or not game.scores_layer.visible:
+		push_error("GLOBAL SCORES should open the in-app scores panel")
+		quit(1)
+		return
 	if game.toast_label.visible and "PLAY GAMES SETUP" not in game.toast_label.text:
 		push_error("GLOBAL SCORES should show the Play Games setup toast when release IDs are blank")
 		quit(1)
 		return
+	game._hide_global_scores()
 	if bool(ProjectSettings.get_setting("application/config/quit_on_go_back", true)):
 		push_error("Android native back is still configured to quit the app")
 		quit(1)
@@ -129,7 +134,7 @@ func _run() -> void:
 		return
 	var required_art: Array[String] = []
 	required_art.append_array(game.RUNNER_ART_PATHS)
-	required_art.append_array(game.RUNNER_GAMEPLAY_ART_PATHS)
+	required_art.append_array(game.player.SKIN_TEXTURE_PATHS)
 	required_art.append_array(game.player.BODY_TEXTURE_PATHS)
 	required_art.append_array([
 		game.RIVAL_ART_PATH,
@@ -137,7 +142,6 @@ func _run() -> void:
 		game.REWARD_POWER_ATLAS_PATH,
 		game.BIOME_PROP_ATLAS_PATH,
 		game.EFFECTS_MEDALS_ATLAS_PATH,
-		game.SURFACE_ATLAS_PATH,
 		game.MENU_LOGO_PATH,
 		game.UI_FONT_PATH,
 		game.UI_FONT_BOLD_PATH,
@@ -610,10 +614,6 @@ func _run() -> void:
 		return
 	game.mobile_mode = true
 	game._start_run()
-	if game.touch_controls.visible:
-		push_error("Mobile mode displayed keyboard-style arrow controls")
-		quit(1)
-		return
 	_dispatch_swipe(game, Vector2(600, 420), Vector2(470, 420), 7, true)
 	if game.player.lane != 0:
 		push_error("Mobile left swipe did not switch lanes")
@@ -677,10 +677,6 @@ func _run() -> void:
 		return
 	game.mobile_mode = false
 	game._start_run()
-	if game.touch_controls.visible or game.touch_controls.get_child_count() != 0:
-		push_error("Desktop mode displayed on-screen arrow controls")
-		quit(1)
-		return
 	game.player.run_clock = PI / 24.0
 	game.player._animate_run()
 	var first_stride_frame: int = game.player.run_leg_sprite.frame

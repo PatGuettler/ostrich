@@ -4,9 +4,13 @@ signal availability_changed(available: bool)
 signal sign_in_failed()
 signal score_submit_finished(success: bool, meters: int)
 signal score_queued(meters: int)
+signal scores_loaded(rows: Array)
+signal scores_load_failed(message: String)
+signal ready_to_show()
 
 const LEADERBOARD_ID_SETTING := "ostrich_dash/play_games/longest_dash_leaderboard_id"
 const NO_PENDING_SCORE := -1
+const TOP_RESULTS := 20
 
 var leaderboards_client: PlayGamesLeaderboardsClient
 var sign_in_client: PlayGamesSignInClient
@@ -14,7 +18,6 @@ var available := false
 var authenticated := false
 var leaderboard_id := ""
 var _pending_show_after_sign_in := false
-var _open_after_submit := false
 var _auth_check_started := false
 var _awaiting_manual_sign_in := false
 var _pending_score_meters := NO_PENDING_SCORE
@@ -35,6 +38,7 @@ func _ready() -> void:
 	leaderboards_client.name = "LongestDashLeaderboardsClient"
 	add_child(leaderboards_client)
 	leaderboards_client.score_submitted.connect(_on_score_submitted)
+	leaderboards_client.top_scores_loaded.connect(_on_top_scores_loaded)
 	available = true
 	availability_changed.emit(true)
 	print(
@@ -56,16 +60,14 @@ func submit_longest_dash(meters: int) -> void:
 	if score <= 0:
 		return
 	if not authenticated:
-		# Keep the best unfinished post until Play Games sign-in completes.
 		_pending_score_meters = maxi(_pending_score_meters, score)
 		score_queued.emit(score)
 		_check_authentication()
 		return
 	_submit_score_now(score)
 
-## Returns an empty string when the native leaderboard UI was requested.
-## Otherwise returns a short status token for menu toasts.
-func show_global_scores() -> String:
+## Starts sign-in if needed. Empty string means already authenticated.
+func begin_global_scores() -> String:
 	if not available or not is_instance_valid(leaderboards_client):
 		if leaderboard_id.is_empty():
 			return "setup"
@@ -76,8 +78,31 @@ func show_global_scores() -> String:
 		if is_instance_valid(sign_in_client):
 			sign_in_client.sign_in()
 		return "signing_in"
-	_open_leaderboard_ui()
 	return ""
+
+func fetch_scores() -> void:
+	if not available or not is_instance_valid(leaderboards_client):
+		scores_load_failed.emit("unavailable")
+		return
+	if not authenticated:
+		scores_load_failed.emit("signed_out")
+		return
+	leaderboards_client.load_top_scores(
+		leaderboard_id,
+		PlayGamesLeaderboardVariant.TimeSpan.TIME_SPAN_ALL_TIME,
+		PlayGamesLeaderboardVariant.Collection.COLLECTION_PUBLIC,
+		TOP_RESULTS,
+		true
+	)
+
+func show_native_leaderboard() -> void:
+	if not available or not authenticated or not is_instance_valid(leaderboards_client):
+		return
+	leaderboards_client.show_leaderboard_for_time_span_and_collection(
+		leaderboard_id,
+		PlayGamesLeaderboardVariant.TimeSpan.TIME_SPAN_ALL_TIME,
+		PlayGamesLeaderboardVariant.Collection.COLLECTION_PUBLIC
+	)
 
 func _submit_score_now(meters: int) -> void:
 	if not is_instance_valid(leaderboards_client):
@@ -89,22 +114,12 @@ func _submit_score_now(meters: int) -> void:
 	)
 	leaderboards_client.submit_score(leaderboard_id, meters)
 
-func _flush_pending_score() -> bool:
+func _flush_pending_score() -> void:
 	if _pending_score_meters == NO_PENDING_SCORE:
-		return false
+		return
 	var meters := _pending_score_meters
 	_pending_score_meters = NO_PENDING_SCORE
 	_submit_score_now(meters)
-	return true
-
-func _open_leaderboard_ui() -> void:
-	if not is_instance_valid(leaderboards_client):
-		return
-	leaderboards_client.show_leaderboard_for_time_span_and_collection(
-		leaderboard_id,
-		PlayGamesLeaderboardVariant.TimeSpan.TIME_SPAN_ALL_TIME,
-		PlayGamesLeaderboardVariant.Collection.COLLECTION_PUBLIC
-	)
 
 func _on_user_authenticated(is_authenticated: bool) -> void:
 	authenticated = is_authenticated
@@ -113,21 +128,16 @@ func _on_user_authenticated(is_authenticated: bool) -> void:
 	_awaiting_manual_sign_in = false
 	if not is_authenticated:
 		_pending_show_after_sign_in = false
-		_open_after_submit = false
 		if was_awaiting_manual:
 			push_warning(
 				"LeaderboardService: Play Games sign-in failed. Check OAuth SHA-1 (Play App Signing), consent Audience test users, and Play Games testers."
 			)
 			sign_in_failed.emit()
 		return
-	var flushed := _flush_pending_score()
+	_flush_pending_score()
 	if _pending_show_after_sign_in:
 		_pending_show_after_sign_in = false
-		if flushed:
-			# Wait for submit so the native board shows the new score on first open.
-			_open_after_submit = true
-		else:
-			_open_leaderboard_ui()
+		ready_to_show.emit()
 
 func _on_score_submitted(is_submitted: bool, submitted_leaderboard_id: String) -> void:
 	print(
@@ -139,6 +149,19 @@ func _on_score_submitted(is_submitted: bool, submitted_leaderboard_id: String) -
 		push_warning(
 			"LeaderboardService: score was not submitted for %s" % submitted_leaderboard_id
 		)
-	if _open_after_submit:
-		_open_after_submit = false
-		_open_leaderboard_ui()
+
+func _on_top_scores_loaded(loaded_leaderboard_id: String, leaderboard_scores: PlayGamesLeaderboardScores) -> void:
+	if loaded_leaderboard_id != leaderboard_id:
+		return
+	var rows: Array = []
+	if leaderboard_scores != null:
+		for entry: PlayGamesLeaderboardScore in leaderboard_scores.scores:
+			rows.append({
+				"rank": entry.rank,
+				"display_rank": entry.display_rank,
+				"name": entry.score_holder_display_name,
+				"score": entry.raw_score,
+				"display_score": entry.display_score,
+			})
+	print("LeaderboardService: loaded %d rows" % rows.size())
+	scores_loaded.emit(rows)

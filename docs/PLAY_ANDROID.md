@@ -56,7 +56,7 @@ Recorded production IDs (not served while testing):
 2. Enable the Google Play Developer API for the Google Cloud project that owns the service account.
 3. Invite that service account in Play Console and grant it release access to Ostrich Dash.
 4. Keep the internal-testing track (this is how Peregrine ships). Add testers and complete any Console forms required before a release can be accepted. Do not point CI at closed testing until the Play app is no longer a draft.
-5. Configure Play Games Services, create the larger-is-better `Longest Dash` leaderboard, add the release signing SHA-1 credential, publish its configuration, and add both generated IDs as CI secrets. See `docs/LEADERBOARD.md`.
+5. Configure Play Games Services, create the larger-is-better `Longest Dash` leaderboard, add the release signing SHA-1 credential, publish its configuration, and add the generated ID as a CI secret. See `docs/LEADERBOARD.md`.
 6. Add the shared Grapegames listing URLs:
    - Website: `https://patguettler.github.io`
    - Privacy policy: `https://patguettler.github.io/privacy-policy.html`
