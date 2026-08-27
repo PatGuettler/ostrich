@@ -156,10 +156,22 @@ jobs:
             -alias "$KEY_ALIAS" \
             -storepass "$KEYSTORE_PASSWORD"
 
+      # github.run_number reset to 1 when this workflow file was renamed for the
+      # monorepo. Play already has higher versionCodes, so query the store.
+      - name: Resolve next Play version code
+        id: play_version
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          PACKAGE_NAME: ${{ env.RELEASE_PACKAGE_NAME }}
+        shell: bash
+        run: |
+          chmod +x scripts/ci/next-play-version-code.sh
+          ./scripts/ci/next-play-version-code.sh
+
       - name: Export and validate signed Play AAB
         env:
-          VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: 1.${{ github.run_number }}
+          VERSION_CODE: ${{ steps.play_version.outputs.VERSION_CODE }}
+          VERSION_NAME: ${{ steps.play_version.outputs.VERSION_NAME }}
           ADMOB_ADS_ENABLED: "true"
           OSTRICH_DASH_ADMOB_ANDROID_APP_ID: ${{ secrets.OSTRICH_DASH_ADMOB_ANDROID_APP_ID }}
           OSTRICH_DASH_PLAY_GAMES_APP_ID: ${{ secrets.OSTRICH_DASH_PLAY_GAMES_APP_ID }}
