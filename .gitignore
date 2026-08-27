@@ -1,10 +1,10 @@
-# Godot editor cache
-.godot/
+# Godot editor caches for every game project
+**/.godot/
 .nomedia
-.import/
+**/.import/
 
 # Build outputs
-builds/
+**/builds/
 *.apk
 *.aab
 export.cfg
@@ -12,16 +12,15 @@ export_credentials.cfg
 
 # Play Console artwork is not loaded by the game. Godot may scan it during an
 # editor/export run, but its generated import sidecars do not belong in source.
-store/google-play/**/*.import
+**/store/google-play/**/*.import
 
-# Generated Godot Android build template. Keep only the release overlays.
-/android/*
-!android/.build_version
-!android/play-release.gradle
-!android/proguard-godot-play.pro
+# Generated per-game Godot Android build templates. Each game's release
+# overlays and version marker remain normal tracked source files.
+**/android/build/
+**/android/.gradle/
 
 # Runtime configuration and credentials
-config/admob.json
+**/config/admob.json
 *.keystore
 *.jks
 *service-account*.json

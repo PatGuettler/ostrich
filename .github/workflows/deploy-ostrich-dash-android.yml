@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - master
+    paths:
+      - "ostrich-dash/**"
+      - ".github/workflows/deploy-ostrich-dash-android.yml"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +31,9 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    defaults:
+      run:
+        working-directory: ostrich-dash
 
     steps:
       - name: Check out game source
@@ -39,16 +45,16 @@ jobs:
           path: |
             ~/.cache/ostrich-dash/godot
             ~/.local/share/godot/export_templates
-            .godot
-          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('**/*.gd', '**/*.import', 'project.godot', 'export_presets.cfg', 'android/.build_version') }}
+            ostrich-dash/.godot
+          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('ostrich-dash/**/*.gd', 'ostrich-dash/**/*.import', 'ostrich-dash/project.godot', 'ostrich-dash/export_presets.cfg', 'ostrich-dash/android/.build_version') }}
           restore-keys: |
             godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-
 
       - name: Cache Android build template
         uses: actions/cache@v4
         with:
-          path: android/build
-          key: android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('android/.build_version', 'android/play-release.gradle', 'android/proguard-godot-play.pro') }}
+          path: ostrich-dash/android/build
+          key: android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-${{ hashFiles('ostrich-dash/android/.build_version', 'ostrich-dash/android/play-release.gradle', 'ostrich-dash/android/proguard-godot-play.pro') }}
           restore-keys: |
             android-build-${{ runner.os }}-${{ env.GODOT_VERSION }}-
 
@@ -174,6 +180,6 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.RELEASE_PACKAGE_NAME }}
-          releaseFiles: builds/android/OstrichDash.aab
+          releaseFiles: ostrich-dash/builds/android/OstrichDash.aab
           tracks: internal
           status: completed

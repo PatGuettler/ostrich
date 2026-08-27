@@ -6,11 +6,11 @@ The release package proposed for Ostrich Dash is:
 com.grapegames.ostrichdash
 ```
 
-Google Play package names cannot be changed after the app is created. Confirm this value before creating the Play Console app or making the first upload. If a Play app already exists under another package, update `export_presets.cfg`, `.github/workflows/deploy-android.yml`, and the default in `scripts/ci/godot-export-android.sh` together.
+Google Play package names cannot be changed after the app is created. Confirm this value before creating the Play Console app or making the first upload. If a Play app already exists under another package, update `export_presets.cfg`, the repository-level `.github/workflows/deploy-ostrich-dash-android.yml`, and the default in `scripts/ci/godot-export-android.sh` together.
 
 ## What the workflow does
 
-`.github/workflows/deploy-android.yml` runs on pushes to `main` or `master`, and can also be started manually. It:
+The repository-level `.github/workflows/deploy-ostrich-dash-android.yml` runs when `ostrich-dash/**` changes on `main` or `master`, and can also be started manually. It:
 
 1. installs the pinned Godot 4.7.1 editor and Android export templates;
 2. restores or creates Godot's Gradle Android build template;
