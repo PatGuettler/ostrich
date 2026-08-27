@@ -210,7 +210,10 @@ func _run() -> void:
 	if (
 		not game.player.duck_sprite.visible
 		or game.player.duck_pose_blend < 0.99
-		or game.player.run_leg_sprite.modulate.a > 0.01
+		or game.player.run_leg_sprite.visible
+		or game.player.run_leg_sprite.frame != 2
+		or game.player.duck_sprite.scale.y > 0.65
+		or game.player.duck_sprite.position.y > 1.05
 		or game.player.character_sprite.modulate.a > 0.01
 		or game.player.neck.rotation.x > -0.7
 		or game.player.collision_height() > 2.0
@@ -225,7 +228,8 @@ func _run() -> void:
 	if (
 		not game.player.jump_sprite.visible
 		or game.player.jump_pose_blend < 0.99
-		or game.player.run_leg_sprite.modulate.a > 0.01
+		or game.player.run_leg_sprite.visible
+		or game.player.run_leg_sprite.frame != 2
 		or game.player.position.y < 0.7
 		or absf(game.player.ground_shadow.global_position.y - 0.055) > 0.02
 		or game.player.ground_shadow.scale.x > 0.9
@@ -234,6 +238,19 @@ func _run() -> void:
 		quit(1)
 		return
 	game.player.reset_player()
+	if not game.player.run_leg_sprite.visible:
+		push_error("Run legs did not resume after the avoidance pose ended")
+		quit(1)
+		return
+	game._clear_run_objects()
+	game.current_biome = 0
+	game._spawn_obstacle("drone", 1, -2.0)
+	var drone_art := game.obstacles[-1].node.get_node_or_null("GeneratedDroneArt") as Sprite3D
+	if drone_art == null or drone_art.position.y < 3.4:
+		push_error("Flying hazards are not visibly raised above the folded duck pose")
+		quit(1)
+		return
+	game._clear_run_objects()
 	if (
 		not is_instance_valid(game.menu_logo)
 		or game.menu_logo.texture == null

@@ -103,6 +103,7 @@ const SURFACE_PATHS := [
 	"res://assets/generated/gameplay/surfaces/hd/moon_dust_hd.png",
 ]
 const OBSTACLE_CELLS := {"wall": 0, "bar": 1, "cone": 2, "drone": 3, "slip": 4}
+const DRONE_VISUAL_HEIGHT := 3.50
 
 var state := GameState.MENU
 var game_viewport_container: SubViewportContainer
@@ -875,7 +876,10 @@ func _spawn_obstacle(kind: String, lane: int, z: float) -> void:
 		rival_parts = _build_rival_runner(node)
 	else:
 		var cell: int = [0, 5].pick_random() if kind == "wall" else OBSTACLE_CELLS.get(kind, 5)
-		var sprite_height: float = {"wall": 1.42, "bar": 2.82, "cone": 1.08, "drone": 2.55, "slip": 0.62}.get(kind, 1.0)
+		# Flying hazards need a real daylight gap above the fully folded runner.
+		# Their atlas cells contain substantial transparent padding, so their
+		# authored center sits higher than the tall duck-under gate's center.
+		var sprite_height: float = {"wall": 1.42, "bar": 2.82, "cone": 1.08, "drone": DRONE_VISUAL_HEIGHT, "slip": 0.62}.get(kind, 1.0)
 		var pixel_size: float = {"wall": 0.0074, "bar": 0.0088, "cone": 0.0062, "drone": 0.0074, "slip": 0.0063}.get(kind, 0.0065)
 		var atlas_path: String = OBSTACLE_ATLAS_PATHS[clampi(current_biome, 0, OBSTACLE_ATLAS_PATHS.size() - 1)]
 		var art := _sprite_3d(node, _atlas_texture(atlas_path, 3, 2, cell), Vector3(0.0, sprite_height, 0.0), pixel_size, "Generated%sArt" % kind.capitalize())

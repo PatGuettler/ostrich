@@ -230,6 +230,14 @@ func _run() -> void:
 	_save_frame("duck_neck_fold_under_bar.png")
 	game._clear_run_objects()
 	game.player.reset_player()
+	game._spawn_obstacle("drone", 1, -1.0)
+	game.player.duck()
+	game.player._animate_run(1.0)
+	for i in range(4):
+		await process_frame
+	_save_frame("duck_clears_flying_hazard.png")
+	game._clear_run_objects()
+	game.player.reset_player()
 	game.player.visible = false
 	game._clear_run_objects()
 	game._spawn_all_lane_skill_row("jump", -8.0)

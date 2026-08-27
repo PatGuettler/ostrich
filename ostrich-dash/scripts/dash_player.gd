@@ -62,6 +62,7 @@ const JUMP_TEXTURE_PATHS := [
 # Each generated crouch has a slightly different amount of transparent space
 # beneath its shoes. These authored centers keep every pair planted on the track.
 const DUCK_POSE_Y := [1.48, 1.62, 1.40, 1.60, 1.62, 1.48, 1.60, 1.48, 1.62, 1.60, 1.48, 1.62]
+const DUCK_POSE_HEIGHT_SCALE := 0.64
 const RUN_LEG_SHEET_PATH := "res://assets/generated/gameplay/runner_classic_legs_run_sheet.png"
 
 var lane := 1
@@ -170,12 +171,14 @@ func jump(max_jumps: int = 1) -> bool:
 	jumping = true
 	jumps_used += 1
 	jump_velocity = 10.8 if jumps_used == 1 else 10.2
+	_freeze_run_legs_for_avoidance()
 	return true
 
 func duck() -> void:
 	if active and not stunned and not jumping:
 		ducking = true
 		duck_timer = 0.86
+		_freeze_run_legs_for_avoidance()
 
 func trigger_spin() -> void:
 	if stunned:
@@ -302,18 +305,28 @@ func _animate_run(delta: float = 1.0 / 60.0) -> void:
 	duck_pose_blend = move_toward(duck_pose_blend, 1.0 if ducking else 0.0, delta * (12.0 if ducking else 9.0))
 	jump_pose_blend = move_toward(jump_pose_blend, 1.0 if jumping else 0.0, delta * (14.0 if jumping else 10.0))
 	var authored_pose_blend := maxf(duck_pose_blend, jump_pose_blend)
-	left_leg.rotation.x = swing
-	right_leg.rotation.x = -swing
+	var avoidance_pose_active := ducking or jumping or authored_pose_blend > 0.01
+	if avoidance_pose_active:
+		left_leg.rotation.x = 0.0
+		right_leg.rotation.x = 0.0
+	else:
+		left_leg.rotation.x = swing
+		right_leg.rotation.x = -swing
 	# Six authored poses replace the old rigid cutout rotation. Advancing the
 	# 3x2 sheet changes knee bend, recovery height, planted foot, and visible sole
 	# while the body plate continues to bob smoothly above it.
-	if is_instance_valid(run_leg_sprite) and run_leg_sprite.visible:
-		var stride_phase := fposmod(pace, TAU) / TAU
-		run_leg_sprite.frame = mini(int(floor(stride_phase * 6.0)), 5)
-		run_leg_sprite.position.y = 1.15 + bounce
-		run_leg_sprite.rotation.z = sin(pace) * 0.018
-		run_leg_sprite.scale = Vector3(1.0 + bounce * 0.08, 1.0 - bounce * 0.04, 1.0)
-		run_leg_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 - authored_pose_blend)
+	if is_instance_valid(run_leg_sprite):
+		run_leg_sprite.visible = not avoidance_pose_active
+		if avoidance_pose_active:
+			run_leg_sprite.frame = 2
+			run_leg_sprite.rotation = Vector3.ZERO
+		else:
+			var stride_phase := fposmod(pace, TAU) / TAU
+			run_leg_sprite.frame = mini(int(floor(stride_phase * 6.0)), 5)
+			run_leg_sprite.position.y = 1.15 + bounce
+			run_leg_sprite.rotation.z = sin(pace) * 0.018
+			run_leg_sprite.scale = Vector3(1.0 + bounce * 0.08, 1.0 - bounce * 0.04, 1.0)
+			run_leg_sprite.modulate = Color.WHITE
 	left_wing.rotation.z = -0.35 + sin(pace) * 0.12
 	right_wing.rotation.z = 0.35 - sin(pace) * 0.12
 	body.position.y = 2.55 + bounce
@@ -324,16 +337,18 @@ func _animate_run(delta: float = 1.0 / 60.0) -> void:
 	visual.rotation.z = lerpf(visual.rotation.z, (LANES[lane] - position.x) * -0.075, 0.2)
 
 	duck_sprite.visible = duck_pose_blend > 0.01
-	duck_sprite.position = Vector3(0.0, DUCK_POSE_Y[current_skin_index] + bounce * 0.12, -0.055)
-	duck_sprite.rotation.z = sin(pace * 0.5) * 0.012
-	duck_sprite.scale = Vector3(1.0 + bounce * 0.025, 1.0 - bounce * 0.018, 1.0)
+	# Scale around the authored shoe line: multiplying the center by the same
+	# factor as the height keeps both shoes planted while pulling the curled head
+	# fully below flying hazards. The avoidance plate itself remains static.
+	duck_sprite.position = Vector3(0.0, DUCK_POSE_Y[current_skin_index] * DUCK_POSE_HEIGHT_SCALE, -0.055)
+	duck_sprite.rotation = Vector3.ZERO
+	duck_sprite.scale = Vector3(1.0, DUCK_POSE_HEIGHT_SCALE, 1.0)
 	duck_sprite.modulate = Color(current_art_tint.r, current_art_tint.g, current_art_tint.b, duck_pose_blend)
 
 	jump_sprite.visible = jump_pose_blend > 0.01
-	jump_sprite.position = Vector3(0.0, 2.44 + sin(run_clock * 5.0) * 0.025, -0.05)
+	jump_sprite.position = Vector3(0.0, 2.44, -0.05)
 	jump_sprite.rotation.z = lerpf(0.0, (LANES[lane] - position.x) * -0.045, jump_pose_blend)
-	var tuck := clampf(position.y / 1.4, 0.0, 1.0)
-	jump_sprite.scale = Vector3(1.0 + tuck * 0.035, 1.0 - tuck * 0.025, 1.0)
+	jump_sprite.scale = Vector3.ONE
 	jump_sprite.modulate = Color(current_art_tint.r, current_art_tint.g, current_art_tint.b, jump_pose_blend)
 	if ducking:
 		neck.scale.y = lerpf(neck.scale.y, 0.34, 0.35)
@@ -615,6 +630,17 @@ func _reset_run_cycle() -> void:
 	run_leg_sprite.position = Vector3(0.0, 1.15, -0.07)
 	run_leg_sprite.rotation = Vector3.ZERO
 	run_leg_sprite.scale = Vector3.ONE
+	run_leg_sprite.modulate = Color.WHITE
+	run_leg_sprite.visible = true
+
+func _freeze_run_legs_for_avoidance() -> void:
+	if not is_instance_valid(run_leg_sprite):
+		return
+	# The palette shader owns the final alpha, so modulate alone cannot reliably
+	# hide this layer on every renderer. Visibility makes the guarantee explicit.
+	run_leg_sprite.frame = 2
+	run_leg_sprite.rotation = Vector3.ZERO
+	run_leg_sprite.visible = false
 
 func _set_layered_runner_visible(enabled: bool) -> void:
 	if not is_instance_valid(run_leg_sprite):
