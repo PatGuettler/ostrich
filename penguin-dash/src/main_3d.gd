@@ -2,8 +2,14 @@ extends Node3D
 
 const TRACK_LENGTH := 3000.0
 const TRACK_STEP := 3.0
-const PLAYER_CLEARANCE := 0.24
+const PLAYER_CLEARANCE := 0.16
 const SAVE_PATH := "user://penguin_dash_3d_save.json"
+const PENGUIN_SCENE: PackedScene = preload("res://assets/models/penguin_joy_biped.glb")
+# Mesh vertices are already in meters; do not compensate for the 0.01 armature node.
+const PENGUIN_MODEL_SCALE := 0.85
+# Meshy biped is Y-up and faces +Z. Rotate onto its belly, head down the chute.
+const PENGUIN_MODEL_ROTATION := Vector3(90.0, 180.0, 0.0)
+const PENGUIN_MODEL_OFFSET := Vector3(0.0, 0.02, 0.0)
 
 const NAVY := Color("#0E1F2E")
 const GLACIER := Color("#1B4B6B")
@@ -31,10 +37,7 @@ var new_best := false
 var rng := RandomNumberGenerator.new()
 var player: Node3D
 var player_visual: Node3D
-var left_flipper: MeshInstance3D
-var right_flipper: MeshInstance3D
-var left_foot: MeshInstance3D
-var right_foot: MeshInstance3D
+var penguin_anim: AnimationPlayer
 var camera: Camera3D
 var obstacle_root: Node3D
 var next_obstacle_at := 55.0
@@ -345,37 +348,85 @@ func _build_penguin() -> Node3D:
 	player_visual.name = "Model"
 	root.add_child(player_visual)
 
-	_add_sphere(player_visual, "Body", Vector3(0, 0.52, 0.0), Vector3(0.88, 0.44, 1.22), mat_navy)
-	_add_sphere(player_visual, "Tummy", Vector3(0, 0.69, -0.12), Vector3(0.66, 0.18, 0.87), mat_cream)
-	_add_sphere(player_visual, "Shorts", Vector3(0, 0.55, 0.73), Vector3(0.77, 0.34, 0.56), mat_orange)
-	_add_sphere(player_visual, "Head", Vector3(0, 0.76, -0.97), Vector3(0.69, 0.63, 0.72), mat_navy)
-	_add_sphere(player_visual, "FaceLeft", Vector3(-0.24, 0.90, -1.31), Vector3(0.34, 0.28, 0.18), mat_cream)
-	_add_sphere(player_visual, "FaceRight", Vector3(0.24, 0.90, -1.31), Vector3(0.34, 0.28, 0.18), mat_cream)
-	_add_sphere(player_visual, "EyeLeft", Vector3(-0.22, 1.04, -1.42), Vector3(0.13, 0.15, 0.08), mat_navy)
-	_add_sphere(player_visual, "EyeRight", Vector3(0.22, 1.04, -1.42), Vector3(0.13, 0.15, 0.08), mat_navy)
-	_add_sphere(player_visual, "EyeSparkLeft", Vector3(-0.18, 1.10, -1.47), Vector3(0.037, 0.045, 0.025), mat_cream)
-	_add_sphere(player_visual, "EyeSparkRight", Vector3(0.26, 1.10, -1.47), Vector3(0.037, 0.045, 0.025), mat_cream)
-	_add_sphere(player_visual, "Beak", Vector3(0, 0.82, -1.53), Vector3(0.18, 0.085, 0.17), mat_orange)
-
-	left_flipper = _add_sphere(player_visual, "LeftFlipper", Vector3(-0.68, 0.57, -0.05), Vector3(0.58, 0.12, 0.27), mat_navy)
-	right_flipper = _add_sphere(player_visual, "RightFlipper", Vector3(0.68, 0.57, -0.05), Vector3(0.58, 0.12, 0.27), mat_navy)
-	left_flipper.rotation_degrees = Vector3(0, -12, -14)
-	right_flipper.rotation_degrees = Vector3(0, 12, 14)
-	left_foot = _add_sphere(player_visual, "LeftFoot", Vector3(-0.29, 0.48, 1.04), Vector3(0.25, 0.14, 0.36), mat_orange)
-	right_foot = _add_sphere(player_visual, "RightFoot", Vector3(0.29, 0.48, 1.04), Vector3(0.25, 0.14, 0.36), mat_orange)
-
-	_add_sphere(player_visual, "Beanie", Vector3(0, 1.25, -0.93), Vector3(0.59, 0.25, 0.57), mat_cyan)
-	_add_sphere(player_visual, "HatBand", Vector3(0, 1.12, -1.02), Vector3(0.61, 0.11, 0.49), mat_cream)
-	_add_sphere(player_visual, "PomPom", Vector3(0, 1.44, -0.80), Vector3(0.22, 0.22, 0.22), mat_cream)
-	_add_sphere(player_visual, "ScarfBand", Vector3(0, 0.76, -0.48), Vector3(0.64, 0.11, 0.25), mat_gold)
-	var scarf_tail := _add_sphere(player_visual, "ScarfTail", Vector3(-0.47, 0.72, 0.09), Vector3(0.15, 0.07, 0.95), mat_gold)
-	scarf_tail.rotation_degrees = Vector3(0, -19, 0)
-
-	var heart_left := _add_sphere(player_visual, "ShortsHeartLeft", Vector3(-0.11, 0.90, 0.82), Vector3(0.13, 0.06, 0.13), mat_gold)
-	var heart_right := _add_sphere(player_visual, "ShortsHeartRight", Vector3(0.11, 0.90, 0.82), Vector3(0.13, 0.06, 0.13), mat_gold)
-	heart_left.rotation_degrees.x = 12
-	heart_right.rotation_degrees.x = 12
+	var model := PENGUIN_SCENE.instantiate() as Node3D
+	model.name = "MeshyPenguin"
+	model.rotation_degrees = PENGUIN_MODEL_ROTATION
+	model.scale = Vector3.ONE * PENGUIN_MODEL_SCALE
+	model.position = PENGUIN_MODEL_OFFSET
+	player_visual.add_child(model)
+	_tune_penguin_materials(model)
+	penguin_anim = _find_animation_player(model)
+	if penguin_anim:
+		penguin_anim.active = true
+		_play_penguin_clip("Walking", 0.85)
 	return root
+
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found:
+			return found
+	return null
+
+
+func _penguin_clip_name(want: String) -> String:
+	if penguin_anim == null:
+		return ""
+	if penguin_anim.has_animation(want):
+		return want
+	for clip in penguin_anim.get_animation_list():
+		if clip.ends_with("/" + want) or clip.ends_with("|" + want) or clip == want:
+			return clip
+	for clip in penguin_anim.get_animation_list():
+		if want.to_lower() in clip.to_lower():
+			return clip
+	return ""
+
+
+func _play_penguin_clip(want: String, speed_scale: float) -> void:
+	if penguin_anim == null:
+		return
+	var clip := _penguin_clip_name(want)
+	if clip.is_empty():
+		return
+	if penguin_anim.current_animation != clip:
+		penguin_anim.play(clip)
+	penguin_anim.speed_scale = speed_scale
+
+
+func _tune_penguin_materials(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.material_override is BaseMaterial3D:
+			mesh_instance.material_override = _dim_meshy_material(mesh_instance.material_override)
+		var surface_count := 0
+		if mesh_instance.mesh:
+			surface_count = mesh_instance.mesh.get_surface_count()
+		for surface in range(surface_count):
+			var material := mesh_instance.get_active_material(surface)
+			if material == null and mesh_instance.mesh:
+				material = mesh_instance.mesh.surface_get_material(surface)
+			if material:
+				mesh_instance.set_surface_override_material(surface, _dim_meshy_material(material))
+	for child in node.get_children():
+		_tune_penguin_materials(child)
+
+
+func _dim_meshy_material(material: Material) -> Material:
+	var tuned := material.duplicate()
+	if tuned is BaseMaterial3D:
+		var base := tuned as BaseMaterial3D
+		base.emission_enabled = false
+		base.emission_energy_multiplier = 0.0
+		base.emission = Color.BLACK
+		base.metallic = minf(base.metallic, 0.04)
+		base.roughness = maxf(base.roughness, 0.55)
+		base.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		base.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	return tuned
 
 
 func _sphere_mesh() -> SphereMesh:
@@ -433,8 +484,8 @@ func _place_player(immediate: bool) -> void:
 func _update_camera(delta: float, immediate: bool) -> void:
 	var frame := _course_frame(distance)
 	var forward := -frame.basis.z
-	var desired_position := frame.origin - forward * 7.6 + frame.basis.y * 4.7
-	var target := _course_point(minf(TRACK_LENGTH, distance + 13.0)) + frame.basis.y * 0.72
+	var desired_position := frame.origin - forward * 5.6 + frame.basis.y * 2.8
+	var target := _course_point(minf(TRACK_LENGTH, distance + 9.0)) + frame.basis.y * 0.42
 	if immediate:
 		camera.global_position = desired_position
 	else:
@@ -592,14 +643,18 @@ func _update_obstacles() -> void:
 
 
 func _update_character_animation() -> void:
-	if not is_instance_valid(left_flipper):
+	if not is_instance_valid(player_visual):
 		return
-	var energy := 1.0 + speed / 30.0
-	left_flipper.rotation_degrees.z = -14.0 + sin(world_time * 7.3 * energy) * 18.0
-	right_flipper.rotation_degrees.z = 14.0 + sin(world_time * 6.4 * energy + 2.1) * 18.0
-	left_foot.rotation_degrees.x = sin(world_time * 8.1 * energy + 0.7) * 22.0
-	right_foot.rotation_degrees.x = sin(world_time * 7.5 * energy + 2.4) * 22.0
-	player_visual.rotation.z = sin(world_time * 4.6) * 0.025
+	var hopping := jump_height > 0.04
+	match state:
+		GameState.RUNNING:
+			_play_penguin_clip("Running", (1.15 + speed / 22.0) if not hopping else 1.7)
+		GameState.GAME_OVER:
+			_play_penguin_clip("Walking", 0.35)
+		_:
+			_play_penguin_clip("Walking", 0.85)
+	player_visual.rotation.z = sin(world_time * 4.6) * 0.04
+	player_visual.rotation.x = (-0.18 if hopping else 0.0) + sin(world_time * 6.1) * 0.02
 
 
 func _start_run() -> void:

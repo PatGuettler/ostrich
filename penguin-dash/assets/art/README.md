@@ -9,7 +9,7 @@ Premium children's picture-book illustration combining opaque gouache, watercolo
 ## Prompt set
 
 - `alpine_background.png` — portrait Alpine night environment with painted aurora, layered snowy mountains, warm miniature venue lights, and a quiet central gameplay corridor.
-- `penguin_headfirst.png` — active transparent mascot sprite, aligned vertically with its head leading toward the mountain horizon and its shorts, scarf, and feet trailing behind.
+- `penguin_headfirst.png` — active transparent mascot sprite, aligned vertically with its head leading toward the mountain horizon and its shorts, scarf, and feet trailing behind. The playable 3D character is the Meshy Joy biped at `res://assets/models/penguin_joy_biped.glb`, posed belly-first on the chute.
 - `penguin_slide.png` — original sideways mascot exploration, retained as a source-art variant but no longer used by the game.
 - `sea_lion_lunge.png` — transparent mischievous baby sea-lion lunge sprite matching the penguin's painterly finish and readable obstacle silhouette.
 - `golden_fish.png` — transparent round gold fish collectible with glossy eye, rosy cheek, smiling mouth, cyan highlights, and a heart-like tail.

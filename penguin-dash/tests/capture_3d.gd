@@ -34,4 +34,3 @@ func _capture() -> void:
 	game.queue_free()
 	await process_frame
 	quit(0)
-

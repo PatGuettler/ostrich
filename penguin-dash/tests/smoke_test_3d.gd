@@ -24,6 +24,9 @@ func _run() -> void:
 	if game.player == null or game.camera == null:
 		_fail("3D player or follow camera was not created")
 		return
+	if game.player.get_node_or_null("Model/MeshyPenguin") == null:
+		_fail("Meshy penguin model was not instanced")
+		return
 	if game.get_node_or_null("PaintedIceChute") == null:
 		_fail("procedural track mesh was not created")
 		return
